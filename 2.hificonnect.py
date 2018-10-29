@@ -67,7 +67,7 @@ args = parser.parse_args()
 
 '''------------------------main--------------------------'''
 
-log_file = args.out+ ".log"
+log_file = args.out + ".log"
 fh_log = open(log_file,'w')
 
 if args.seqs_lim :
@@ -554,6 +554,7 @@ for line in lines:
 				candidates = sorted(overlaps, key=overlaps.__getitem__,reverse=True)
 
 				if len(candidates) > 0 :
+
 					potenial = candidates[0]
 
 					s0 = read0[-potenial:]
@@ -676,3 +677,4 @@ for line in lines:
 		rm_tmp_cmd = "rm temp.fa.* temp.uc.*"
 		os.system(rm_tmp_cmd)
 
+print("all done!")
