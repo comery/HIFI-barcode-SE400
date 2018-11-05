@@ -21,7 +21,7 @@ The BGISEQ-500 platform has launched a new test sequencing kits capable of singl
 python3 version2.0/hifi.v2.py
 ```
 
-```python
+```text
 usage: HIFI-SE400.py [-h] {all,filter,assign,assembly} ...
 
 Description An automatic pipeline for HIFI-SE400 project, including filtering
@@ -46,11 +46,10 @@ optional arguments:
 python3 version2.0/hifi.v2.py all -outpre hifi -raw test.raw.fastq -index 5 -primer index_primer.list -cid 0.98 -oid 0.95 -seqs_lim 50000 -threads 4 -tp 2
 ```
 #### run by steps [filter -> assign -> assembly]
-- ```shell
-python3 version2.0/hifi.v2.py filter 
-```
 
-```python
+- ```python3 version2.0/hifi.v2.py filter ```
+
+```text
 usage: HIFI-SE400.py filter [-h] -outpre <STR> -raw <STR> [-e <INT>]
 
 optional arguments:
@@ -66,7 +65,7 @@ Filter arguments:
 
 - ```python3 hifi.v2.py assign```
 
-```python
+```text
 usage: HIFI-SE400.py assign [-h] -outpre <STR> -index INT -fq <STR> -primer
                             <STR> [-outdir <STR>]
 
