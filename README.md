@@ -16,6 +16,7 @@ The BGISEQ-500 platform has launched a new test sequencing kits capable of singl
 >hifi.v2.py
 
 ### Usage (latest)
+
 ```shell
 python3 version2.0/hifi.v2.py
 ```
@@ -25,7 +26,7 @@ usage: HIFI-SE400.py [-h] {all,filter,assign,assembly} ...
 
 Description An automatic pipeline for HIFI-SE400 project, including filtering
 raw reads, assigning reads to samples, assembly HIFI barcodes (COI sequences).
-Version 2.0 Author yangchentao@genomics.cn, BGI.
+Version 2.0 Author yangchentao at genomics.cn, BGI.
 
 positional arguments:
   {all,filter,assign,assembly}
@@ -43,7 +44,7 @@ optional arguments:
 #### run in "all"
 ```shell
 python3 version2.0/hifi.v2.py all -outpre hifi -raw test.raw.fastq -index 5 -primer index_primer.list -cid 0.98 -oid 0.95 -seqs_lim 50000 -threads 4 -tp 2
-
+```
 #### run by steps [filter -> assign -> assembly]
 - ```shell
 python3 version2.0/hifi.v2.py filter 
