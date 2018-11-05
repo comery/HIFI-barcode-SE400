@@ -30,8 +30,8 @@ use FindBin qw($Bin);
 	--list     <str>   input file, fastq file list.
 	--min      <int>   minimun length of overlap [60]
 	--max      <int>   maximum length of verlap [90]
-	--oid      <float> cutoff of identity of overlap region [0.85]
-	--cid      <float> clustering identity rate [0.95]
+	--oid      <float> cutoff of identity of overlap region [0.95]
+	--cid      <float> clustering identity rate [0.98]
 	--tp       <int>   how many clusters using in assembly. [2]
 	--limit    <int>   limit sequencs number to save memory.
 	--seqs     <int>   reads number limitation. [50000]
@@ -92,8 +92,8 @@ $codon ||= 5; # Invertebrate Mitochondrial
 $frame ||= 1; 
 $trim ||= 4; # barcode length. trim barocde before check codon.
 $len ||= 400;
-$overlap_id ||= 0.90;
-$cid ||= 0.95;
+$overlap_id ||= 0.95;
+$cid ||= 0.98;
 $toppick ||= 2;
 $output ||= "contig.fa";
 #-------------log--------------
@@ -467,7 +467,7 @@ sub TranslateDNASeq
 		                                 -terminator => 'U',
 		                                 -unknown => '_',
 		                                 -frame => 0
-		                                 );
+		                             );
 	my $pep = $prot_obj -> seq();
 
 	($pep =~ /U/ || $pep =~ /_/) ? return 0 : return 1;
@@ -496,9 +496,9 @@ sub depth_table{
 
 			delete $depth{'N'} if (exists $depth{'N'});
 
-			my @sort_base = sort{$depth{$b} <=> $depth{$a} or $a cmp $b} keys %depth;
+			my @sort_base = sort{$depth{$b} <=> $depth{$a} or $b cmp $a} keys %depth;
 
-			# for some case, different bases have same deepth
+			# for some case, different bases have same depth
 		
 			$consensus .= $sort_base[0];
 			
@@ -605,7 +605,7 @@ sub mode_vsearch {
 	
 		die "can not find program: vsearch!\n";
 	}
-	system("$Bin/vsearch --cluster_smallmem temp.fa.$$ --threads 2 --quiet --uc temp.uc.$$ --id $cid");
+	system("$Bin/vsearch --cluster_fast temp.fa.$$ --threads 2 --quiet --uc temp.uc.$$ --id $cid");
 	open UC, "< temp.uc.$$" or die "$!";
 	my %clusters;
 	my %count;
@@ -624,8 +624,10 @@ sub mode_vsearch {
 	}
 	close UC;
 
+
 	# sorting clusters by abundance.
-	my @sorted = sort {$count{$b} <=> $count{$a}} keys %count;
+	my @sorted = sort {$count{$b} <=> $count{$a} or $b cmp $a} keys %count;
+
 	
 	# keep top two
 	my $keep = $toppick - 1;
@@ -736,3 +738,65 @@ sub report_depth {
 	}
 	
 }
+#------------------------pure raw contigs---------------------------
+
+print STDERR "Assembly done!\nStarting to pure results...\n";
+
+open IN, "$output";
+open OUT, ">$output.pure";
+my $current_sam;
+my %hash;
+my @all_id;
+my %seqs;
+my %full_name;
+while (<IN>){
+	chomp;
+	s/^>//;
+	my $info = $_;
+	my @a = split /;/,$info;
+	my $id = $a[0];
+	$full_name{$id} = $info;
+	my $size = $1 if ($info =~ /size=(.+?);/) ;
+	my $sam = $1 if ($a[0] =~ /(\d+)_/);
+	chomp(my $seq = <IN>);
+	$seqs{$id} = $seq;
+	# choose most abundant contig, and filter out short amplicons.
+	if (! $current_sam) {
+		$current_sam = $sam;
+		$hash{$id} = $size;
+	}elsif ($sam eq $current_sam) {
+		$hash{$id} = $size;
+	}else{
+		my @sorted_key = sort{$hash{$b} <=> $hash{$a} or $a cmp $b} keys %hash;
+		my ($s1,$s2) = ($1,$2) if ($full_name{$sorted_key[0]} =~ /;(\d+)_(\d+);/);
+		if ($s1 >= 5 && $s2 >= 5) {
+			push @all_id, $sorted_key[0];
+		}
+		%hash = ();
+		$current_sam = $sam;
+		$hash{$id} = $size;
+	}
+}
+# deal last item
+my @sorted_key = sort{$hash{$b} <=> $hash{$a} or $a cmp $b} keys %hash;
+my ($s1,$s2) = ($1,$2) if ($full_name{$sorted_key[0]} =~ /;(\d+)_(\d+);/);
+push @all_id, $sorted_key[0] if ($s1 >= 5 && $s2 >= 5);
+%hash = ();
+
+my @round2;
+foreach my $k(@all_id){
+	if (length($seqs{$k}) > 650){
+		print OUT ">$full_name{$k}\n$seqs{$k}\n";
+	}else{
+		push @round2, $k;
+	}
+}
+
+if (@round2 > 0) {
+	print STDERR "Suggestion: rerun this sample with -rc option:\n";
+	my $advice = join(";",@round2);
+	
+}
+
+close IN;
+close OUT;
