@@ -7,6 +7,12 @@ from Bio.Seq import Seq
 from Bio.Alphabet import generic_dna
 from time import time 
 t = time()
+
+try:
+	import Bio
+except:
+	sys.exit("package biopython not found! Please install it!")
+	
 ###############################################################################
 #####------------------------- parameters --------------------------------#####
 
@@ -130,6 +136,7 @@ assembly_group.add_argument('-frame', metavar='INT', type=int,choices=[0,1,2],
 #####----------------------- main subcommand parsers --------------------######
 
 description = """
+
 Description
 
 	An automatic pipeline for HIFI-SE400 project, including filtering raw reads, 
@@ -144,7 +151,8 @@ Author
 """
 
 
-parser = argparse.ArgumentParser(prog="HIFI-SE400.py", description=description)
+parser = argparse.ArgumentParser(prog="HIFI-SE400.py", description=description,
+								formatter_class=argparse.RawDescriptionHelpFormatter)
 
 subparsers = parser.add_subparsers(dest='command')
 
