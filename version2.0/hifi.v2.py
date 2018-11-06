@@ -1,12 +1,14 @@
+#!/usr/bin/env python3
 import os
 import sys
+import time
 import gzip
 import argparse
 import subprocess
 from Bio.Seq import Seq
 from Bio.Alphabet import generic_dna
-from time import time 
-t = time()
+
+t = time.time()
 
 try:
 	import Bio
@@ -34,7 +36,7 @@ index_group.add_argument('-index', metavar='INT', type=int, required=True,
 # Software group
 soft_parser = argparse.ArgumentParser(add_help=False)
 
-soft_group = soft_parser.add_argument_group('Software path directories')
+soft_group = soft_parser.add_argument_group('software path')
 
 soft_group.add_argument("-vsearch", metavar="<STR>", help="vsearch path" +\
 						" directory (only needed if vsearch is not in PATH)")
@@ -49,22 +51,20 @@ soft_group.add_argument('-cid', metavar='FLOAT', type=float, default=0.98,
 ## filter group  ##
 filter_parser = argparse.ArgumentParser(add_help=False)
 
-filter_group = filter_parser.add_argument_group('Filter arguments')
+filter_group = filter_parser.add_argument_group('filter arguments')
 
 filter_group.add_argument("-raw", metavar="<STR>", required=True,
 						help="raw fastq file")
 
 filter_group.add_argument("-e", metavar="<INT>", type=int, default=10,
 						help="expected error number threshod [10]")
+
 #------------------------------------------------------------------------------
 
 ## assign group ##
 assign_parser = argparse.ArgumentParser(add_help=False)
 
-assign_group = assign_parser.add_argument_group('Assign arguments')
-
-assign_group.add_argument("-fq", metavar="<STR>", required=True, 
-							help="cleaned fastq file ")
+assign_group = assign_parser.add_argument_group('assign arguments')
 
 assign_group.add_argument("-primer", metavar="<STR>", required=True,
 							help="taged primer list, like following lines: \n" +\
@@ -75,6 +75,12 @@ assign_group.add_argument("-primer", metavar="<STR>", required=True,
 
 assign_group.add_argument("-outdir", metavar="<STR>", default='assigned', 
 							help="output directory for assignment")
+## only assign need
+only_assign_parser = argparse.ArgumentParser(add_help=False)
+only_assign_group = only_assign_parser.add_argument_group('when only run assign arguments')
+
+only_assign_group.add_argument("-fq", metavar="<STR>", required=True,
+							help="cleaned fastq file ")
 
 #------------------------------------------------------------------------------
 
@@ -86,13 +92,10 @@ assembly_parser = argparse.ArgumentParser(
 	"how many reads used to make clusters, and whether to check codon translation for PCG.",
 	add_help=False)
 
-assembly_group = assembly_parser.add_argument_group('Assembly arguments')
+assembly_group = assembly_parser.add_argument_group('assembly arguments')
 
-assembly_group.add_argument('-list', metavar='FILE', type=str,required=True,
-							help="input file, fastq file list.")
-
-assembly_group.add_argument('-min', metavar='INT', type=int, default=60, dest='min_overlap',
-							help="minimun length of overlap [60]")
+assembly_group.add_argument('-min', metavar='INT', type=int, default=80, dest='min_overlap',
+							help="minimun length of overlap [80]")
 
 assembly_group.add_argument('-max', metavar='INT', type=int, default=90, dest='max_overlap',
 							help="maximum length of overlap [90]")
@@ -101,10 +104,10 @@ assembly_group.add_argument('-oid', metavar='FLOAT', type=float, default=0.95, d
 							help="cutoff of identity of overlap region [0.95]")
 
 assembly_group.add_argument('-tp', metavar='INT', type=int, dest='cluster_number_needKeep',
-							help="how many clusters using in assembly.")
+							default=2, help="how many clusters using in assembly.")
 
 assembly_group.add_argument('-ab', metavar='INT', type=int, dest='abundance_threshod',
-							help="keep all clusters to assembly if abundance >INT ")
+							help="keep all clusters to assembly if abundance >=INT ")
 
 assembly_group.add_argument('-seqs_lim', metavar='INT', type=int,
 					 		default=0, help="reads number limitation. [0]")
@@ -130,6 +133,14 @@ assembly_group.add_argument('-codon', metavar='INT', type=int, dest="codon_table
 
 assembly_group.add_argument('-frame', metavar='INT', type=int,choices=[0,1,2], 
 							default=1, help="translation start shift [1]") 
+
+
+## only assembly need
+only_assembly_parser = argparse.ArgumentParser(add_help=False)
+only_assembly_group = only_assembly_parser.add_argument_group('when only run assembly arguments')
+
+only_assembly_group.add_argument('-list', metavar='FILE', type=str, required=True,
+							help="input file, fastq file list. [required]")
 #------------------------------------------------------------------------------------------------
 
 ###############################################################################
@@ -143,10 +154,10 @@ Description
 	assigning reads to samples, assembly HIFI barcodes (COI sequences). 
 
 Version
-	2.0
+	2.0 2018-11-3
 
 Author
-	yangchentao@genomics.cn, BGI.
+	yangchentao at genomics.cn, BGI.
 	
 """
 
@@ -168,12 +179,13 @@ parser_filter = subparsers.add_parser("filter", parents=[common_parser, filter_p
 										help="filter raw reads")
 
 ## assign subcommand
-parser_assign = subparsers.add_parser("assign", parents=[common_parser, index_parser, 
-										assign_parser], help="assign reads to samples")
+parser_assign = subparsers.add_parser("assign", parents=[common_parser,index_parser,
+										only_assign_parser,assign_parser], 
+										help="assign reads to samples")
 
 ## assembly subcommand
-parser_assembly = subparsers.add_parser("assembly", parents=[common_parser, index_parser, 
-										soft_parser, assembly_parser], 
+parser_assembly = subparsers.add_parser("assembly", parents=[common_parser,index_parser,
+										only_assembly_parser,soft_parser, assembly_parser], 
 										help="do assembly from input fastq reads,\n" +\
 										"output HIFI barcodes.")
 
@@ -214,23 +226,20 @@ def files_exist_0_or_1(filelist):
 		return 0
 	else:
 		return 1
+
 #----------------------------------------------------------------
 ## file existing check
 if args.command == 'all':
 	errors_found += files_exist_0_or_1([args.raw, args.primer])
 elif args.command == 'filter':
-	errors_found += files_exist_0_or_1([args.raw, args.outpre])
+	errors_found += files_exist_0_or_1([args.raw])
 elif args.command == 'assign':
-	errors_found += files_exist_0_or_1([args.primer,args.fq])
+	errors_found += files_exist_0_or_1([args.primer])
 elif args.command == "assembly":
 	errors_found += files_exist_0_or_1([args.list])
 else:
 	parser.print_help()
 	parser.exit()
-
-if args.outpre[-1:] == "/":
-	print("outpre is in bad format!")
-	eixt()
 
 if args.command in ['all', 'assembly']:
 	vsearch = "vsearch"
@@ -242,6 +251,10 @@ if args.command in ['all', 'assembly']:
 if errors_found > 0:
 	parser.exit("Errors found! Exit!")
 
+
+if args.outpre[-1:] == "/":
+	print("outpre is in bad format!")
+	eixt()
 
 #-----------------------functions for filtering------------------#
 def exp_e(q):
@@ -317,7 +330,7 @@ def read_fastq(fastq_file,ori):
 	if os.path.splitext(fastq_file)[-1][1:] == "gz":
 		fh_file =  gzip.open(fastq_file,'rt')
 	else:
-		fh_file = open(fastq_file)
+		fh_file = open(fastq_file,'r')
 
 	reads_count = 0
 	good = 0
@@ -554,12 +567,21 @@ def mode_vsearch(seqs):
 	sorted_clusters = sorted(count, key=lambda k:(count[k],k),reverse=True)
 
 
-	#keep top two#
-	keep = args.cluster_number_needKeep
-	sorted_clusters = sorted_clusters[0:keep]
+	if args.cluster_number_needKeep:
+		#if set "-tp", keep top N clusters to assembly
+		keep = args.cluster_number_needKeep
+		sorted_clusters = sorted_clusters[0:keep]
+	else:
+		#if set "-ab", keep all clusters of abundance > ab
+		while(sorted_clusters):
+			item = sorted_clusters.pop()
+			if count[item] < args.abundance_threshod:
+				pass
+			else:
+				sorted_clusters.append(item)
+				break
 
-
-	#if second most abundant sequence less than 1/10 of first, remove it!#
+	#if second most abundant sequence less than 1/10 of first, remove it!# of course it is just for when tp==2
 	if len(sorted_clusters) == 2  and count[sorted_clusters[1]] < count[sorted_clusters[0]]/10:
 		sorted_clusters.pop()
 
@@ -608,50 +630,58 @@ def mode_consensus(seqs):
 #------------------------filter process--------------------------#
 if args.command == "all" or args.command == "filter":
 
-	filtered_outfile = args.outpre + "_filter_clean.fq"
+	print("Filtering start: " + time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
+
+	filtered_outfile = args.outpre + "_filter_highQual.fq"
 	if os.path.exists(filtered_outfile):
-		print("WARRNING: " + filtered_outfile + "exists! now overwriting")
+		print("WARRNING: " + filtered_outfile + " exists! now overwriting")
 	out = open(filtered_outfile,'w')
 
 	#Read sequences.
-	err = open(args.outpre +  "_filter_err.fastq",'w')
+	err = open(args.outpre +  "_filter_lowQual.fastq",'w')
 	log = open(args.outpre + "_filter_log.txt",'w')
-	
+
+	if os.path.splitext(args.raw)[-1][1:] == "gz":
+		fh =  gzip.open(args.raw,'rt')
+	else:
+		fh = open(args.raw,'r')
+
 	total = 0
-	nn = 0
 	clean = 0
 
-	with gzip.open(args.raw,'rt') as fh:
-		id = fh.readline().strip()
-		if id[0] != '@':
-			print("ERROR: {} is not a correct fastq format".format(args.raw))
-			exit()
-		while id:
-			seq = fh.readline().strip()
-			fh.readline().strip()
-			qual = fh.readline().strip()
-			if 'N' in seq:
-				err.write(id + "\n" + seq + "\n" + "+\n" + qual + "\n")
-				nn += 1
+	id = fh.readline().strip()
+	if id[0] != '@':
+		print("ERROR: {} is not a correct fastq format".format(args.raw))
+		exit()
+	while id:
+		total += 1
+		seq = fh.readline().strip()
+		fh.readline().strip()
+		qual = fh.readline().strip()
 		
-			else:
-				if exp_e(qual) < args.e :
-					out.write(id + "\n" + seq + "\n" + "+\n" + qual + "\n" )
-					clean += 1
-			id = fh.readline().strip()
+		if exp_e(qual) <= args.e :
+			out.write(id + "\n" + seq + "\n" + "+\n" + qual + "\n" )
+			clean += 1
+		else:
+			err.write(id + "\n" + seq + "\n" + "+\n" + qual + "\n")
 
-	err.write("total reads:\t{}".format(total))
-	err.write("contain Ns reads:\t{}".format(nn))
-	err.write("clean reads:\t{}".format(clean))
+		id = fh.readline().strip()
+
+	log.write("total reads:\t{}".format(total))
+	log.write("clean reads:\t{}".format(clean))
 	
+	fh.close()
 	err.close()
 	log.close()
 	out.close()
-
+	
+	print("Filtering done: " + time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
 
 #------------------------assign process--------------------------#
 
 if args.command in ['all','assign']:
+	print("Assigning start: " + time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
+
 	if args.command == "all":
 		args.fq = filtered_outfile
 		assigned_outdir = os.path.abspath(args.outpre + "_assign")
@@ -666,6 +696,7 @@ if args.command in ['all','assign']:
 	if os.path.exists(assigned_outdir) == False :
 	    os.mkdir(assigned_outdir)
 
+	# check primer list number
 	less_cmd = "less -S " + args.primer + "|wc -l"
 	priwc = subprocess.check_output(less_cmd,shell=True)
 	primer_lines = priwc.decode('utf-8')
@@ -677,7 +708,7 @@ if args.command in ['all','assign']:
 	indp = {}
 	FH = {}
 
-	with open(args.primer,'rt') as p:
+	with open(args.primer,'r') as p:
 	    for i in p.readlines():
 	        i = i.strip()
 	        arr = i.split()
@@ -719,7 +750,6 @@ if args.command in ['all','assign']:
 	filehandle = {}
 	for sam in indp.keys():
 	    filehandle[sam] = open(assigned_outdir + "/" + sam + ".fastq",'w')
-
 
 	seqnum=0
 	err = 0
@@ -793,16 +823,27 @@ if args.command in ['all','assign']:
 	    for i in sorted(count_assigned.keys()):
 	        log.write(i + "\t" + str(count_total[i]) + "\t" + str(count_assigned[i]) + "\n")
 
-	print("assignment done")
+	print("Assigning done: " + time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
 
 
 #------------------------assembly process--------------------------#
 if args.command in ['all','assembly']:
+	print("Assembling start: " + time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
+
 	if args.cluster_number_needKeep and args.abundance_threshod:
 		print( "Bad arguments:\n\t" +\
 				"-tp argument is confilicting with -ab," +\
 				" can not using in the same time" )
 		exit()
+
+	if args.min_overlap >83:
+		print("For COI barcodes, by and large, overlaped length is 83 bp, so {} " +\
+				"is not proper!".format(args.min_overlap))
+		exit()
+	if args.max_overlap < args.min_overlap:
+		print("maximum overlap length must be large than minimun")
+		exit()
+
 	if args.command == 'all':
 		args.list = assigned_list #list generated from assign step
 
@@ -843,12 +884,14 @@ if args.command in ['all','assembly']:
 
 
 	#--------------main-----------------------#
+	barcodes_count = 0
 	try:
 		with open(args.list) as fh_list:
 			lines = fh_list.readlines()
 	except FileNotFoundError:
 		print("can not find " + args.list)
 		exit(0)
+
 
 	for line in lines:
 		line = line.rstrip()
@@ -921,7 +964,6 @@ if args.command in ['all','assembly']:
 					c_size = (abundance_f + abundance_r)/2
 					c_size = str(c_size)
 					
-
 					read0 = cluster_f[-args.max_overlap:]
 					read1 = cluster_r[0:args.max_overlap]
 					
@@ -934,7 +976,8 @@ if args.command in ['all','assembly']:
 						tmp_identity = match(l0,l1)
 						if tmp_identity == 1:
 							overlaps[s] = 1
-							fh_log.write("---> find position " + str(s) +" with 100% mathch, jumping out loop!\n") 
+							fh_log.write( str(pos1) + "-" + str(pos2) + " ---> find position " +\
+										str(s) +" with 100% mathch\n") 
 							#find best result, so exit loop #
 							break
 
@@ -1044,6 +1087,7 @@ if args.command in ['all','assembly']:
 						this_oid = str("%.2f" % this_oid)
 
 						# write into output file #
+						barcodes_count += 1
 						fh_out.write(">" + short_outname + "_" + str(pos1) + "-" + str(pos2) + ";" + str(abundance_f) + "_" +\
 											str(abundance_r) + ";size=" + c_size + ";overPos=" + str(potenial) + ";oid=" + this_oid +\
 											"%" + ";len=" + len_makeup_consensus + "\n" + makeup_consensus + "\n")
@@ -1064,4 +1108,7 @@ if args.command in ['all','assembly']:
 		rm_tmp_cmd = "rm temp.fa.* temp.uc.*"
 		os.system(rm_tmp_cmd)
 
-	print("total run time: {}".format(time() -t))
+	print("Total barcodes generated: {}".format(barcodes_count))
+	print("Assembling done: " + time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
+
+print("total run time: {}".format(time.time() -t))
