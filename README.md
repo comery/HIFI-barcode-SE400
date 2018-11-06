@@ -42,6 +42,8 @@ optional arguments:
 ```
 
 #### run in "all"
+Example:
+
 ```shell
 python3 version2.0/hifi.v2.py all -outpre hifi -raw test.raw.fastq -index 5 -primer index_primer.list -cid 0.98 -oid 0.95 -seqs_lim 50000 -threads 4 -tp 2
 ```
@@ -66,7 +68,7 @@ Filter arguments:
 - ```python3 hifi.v2.py assign```
 
 ```text
-usage: HIFI-SE400.py assign [-h] -outpre <STR> -index INT -fq <STR> -primer
+uusage: HIFI-SE400.py assign [-h] -outpre <STR> -index INT -fq <STR> -primer
                             <STR> [-outdir <STR>]
 
 optional arguments:
@@ -78,8 +80,10 @@ common arguments:
 index arguments:
   -index INT     index sequence lenght
 
-Assign arguments:
+when only run assign arguments:
   -fq <STR>      cleaned fastq file
+
+assign arguments:
   -primer <STR>  taged primer list, like following lines: Rev001
                  AAGCTAAACTTCAGGGTGACCAAAAAATCAFor001
                  AAGCGGTCAACAAATCATAAAGATATTGG...this format is necessary!
@@ -88,8 +92,8 @@ Assign arguments:
 - ```python3 hifi.v2.py assembly```
 
 ```
-usage: HIFI-SE400.py assembly [-h] -outpre <STR> -index INT [-vsearch <STR>]
-                              [-threads <INT>] [-cid FLOAT] -list FILE
+usage: HIFI-SE400.py assembly [-h] -outpre <STR> -index INT -list FILE
+                              [-vsearch <STR>] [-threads <INT>] [-cid FLOAT]
                               [-min INT] [-max INT] [-oid FLOAT] [-tp INT]
                               [-ab INT] [-seqs_lim INT] [-len INT] [-mode INT]
                               [-rc] [-cc] [-codon INT] [-frame INT]
@@ -103,19 +107,21 @@ common arguments:
 index arguments:
   -index INT      index sequence lenght
 
-Software path directories:
+when only run assembly arguments:
+  -list FILE      input file, fastq file list. [required]
+
+software path:
   -vsearch <STR>  vsearch path directory (only needed if vsearch is not in
                   PATH)
   -threads <INT>  threads for vsearch
   -cid FLOAT      clustering identity rate [0.98]
 
-Assembly arguments:
-  -list FILE      input file, fastq file list.
-  -min INT        minimun length of overlap [60]
+assembly arguments:
+  -min INT        minimun length of overlap [80]
   -max INT        maximum length of overlap [90]
   -oid FLOAT      cutoff of identity of overlap region [0.95]
   -tp INT         how many clusters using in assembly.
-  -ab INT         keep all clusters to assembly if abundance >INT
+  -ab INT         keep all clusters to assembly if abundance >=INT
   -seqs_lim INT   reads number limitation. [0]
   -len INT        standard reads length [400]
   -mode INT       modle 1 is to cluster and keep 3 clusters with most
@@ -128,7 +134,5 @@ Assembly arguments:
                   table [4,5] have same effect for COI gene.
   -frame INT      translation start shift [1]
 ```
-
-
 
 
