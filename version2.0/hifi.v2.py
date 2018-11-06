@@ -667,7 +667,7 @@ if args.command == "all" or args.command == "filter":
 
 		id = fh.readline().strip()
 
-	log.write("total reads:\t{}".format(total))
+	log.write("total reads:\t{}".format(total) + "\n")
 	log.write("clean reads:\t{}".format(clean))
 	
 	fh.close()
