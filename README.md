@@ -27,11 +27,19 @@ or
 ```
 
 ```text
-usage: HIFI-SE.py [-h] {all,filter,assign,assembly} ...
+usage: HIFI-SE [-h] {all,filter,assign,assembly} ...
 
-Description An automatic pipeline for HIFI-SE400 project, including filtering
-raw reads, assigning reads to samples, assembly HIFI barcodes (COI sequences).
-Version 2.0 Author yangchentao at genomics.cn, BGI.
+Description
+
+	An automatic pipeline for HIFI-SE400 project, including filtering raw reads,
+	assigning reads to samples, assembly HIFI barcodes (COI sequences).
+
+Version
+	2.0 2018-11-3
+
+Author
+	yangchentao at genomics.cn, BGI.
+
 
 positional arguments:
   {all,filter,assign,assembly}
