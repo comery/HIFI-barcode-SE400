@@ -13,16 +13,21 @@ The BGISEQ-500 platform has launched a new test sequencing kits capable of singl
 2.hificonnect.py  
 
 #### version 2.0 Python
->hifi.v2.py
+>HIFI-SE.py
 
 ### Usage (latest)
 
 ```shell
-python3 version2.0/hifi.v2.py
+python3 HIFI-SE.py
+```
+or 
+
+```shell
+./HIFI-SE.py
 ```
 
 ```text
-usage: HIFI-SE400.py [-h] {all,filter,assign,assembly} ...
+usage: HIFI-SE.py [-h] {all,filter,assign,assembly} ...
 
 Description An automatic pipeline for HIFI-SE400 project, including filtering
 raw reads, assigning reads to samples, assembly HIFI barcodes (COI sequences).
@@ -45,14 +50,14 @@ optional arguments:
 Example:
 
 ```shell
-python3 version2.0/hifi.v2.py all -outpre hifi -raw test.raw.fastq -index 5 -primer index_primer.list -cid 0.98 -oid 0.95 -seqs_lim 50000 -threads 4 -tp 2
+python3 HIFI-SE.py all -outpre hifi -raw test.raw.fastq -index 5 -primer index_primer.list -cid 0.98 -oid 0.95 -seqs_lim 50000 -threads 4 -tp 2
 ```
 #### run by steps [filter -> assign -> assembly]
 
-- ```python3 version2.0/hifi.v2.py filter ```
+- ```python3 HIFI-SE.py filter ```
 
 ```text
-usage: HIFI-SE400.py filter [-h] -outpre <STR> -raw <STR> [-e <INT>]
+usage: HIFI-SE.py filter [-h] -outpre <STR> -raw <STR> [-e <INT>]
 
 optional arguments:
   -h, --help     show this help message and exit
@@ -65,10 +70,10 @@ Filter arguments:
   -e <INT>       expected error number threshod [10]
 ```
 
-- ```python3 hifi.v2.py assign```
+- ```python3 HIFI-SE.py assign```
 
 ```text
-uusage: HIFI-SE400.py assign [-h] -outpre <STR> -index INT -fq <STR> -primer
+uusage: HIFI-SE.py assign [-h] -outpre <STR> -index INT -fq <STR> -primer
                             <STR> [-outdir <STR>]
 
 optional arguments:
@@ -89,10 +94,10 @@ assign arguments:
                  AAGCGGTCAACAAATCATAAAGATATTGG...this format is necessary!
   -outdir <STR>  output directory for assignment
 ```
-- ```python3 hifi.v2.py assembly```
+- ```python3 HIFI-SE.py assembly```
 
 ```
-usage: HIFI-SE400.py assembly [-h] -outpre <STR> -index INT -list FILE
+usage: HIFI-SE.py assembly [-h] -outpre <STR> -index INT -list FILE
                               [-vsearch <STR>] [-threads <INT>] [-cid FLOAT]
                               [-min INT] [-max INT] [-oid FLOAT] [-tp INT]
                               [-ab INT] [-seqs_lim INT] [-len INT] [-mode INT]

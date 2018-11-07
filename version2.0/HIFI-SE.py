@@ -162,7 +162,7 @@ Author
 """
 
 
-parser = argparse.ArgumentParser(prog="HIFI-SE400.py", description=description,
+parser = argparse.ArgumentParser(prog="HIFI-SE", description=description,
 								formatter_class=argparse.RawDescriptionHelpFormatter)
 
 subparsers = parser.add_subparsers(dest='command')
