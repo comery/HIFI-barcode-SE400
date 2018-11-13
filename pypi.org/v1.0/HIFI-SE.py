@@ -7,6 +7,7 @@ import argparse
 import subprocess
 from Bio.Seq import Seq
 from Bio.Alphabet import generic_dna
+from bold_identification.BOLDv4_identification_selenium import main as bold_identification
 
 t = time.time()
 
@@ -14,7 +15,8 @@ try:
 	import Bio
 except:
 	sys.exit("package biopython not found! Please install it!")
-	
+
+
 ###############################################################################
 #####------------------------- parameters --------------------------------#####
 
@@ -39,38 +41,49 @@ soft_parser = argparse.ArgumentParser(add_help=False)
 soft_group = soft_parser.add_argument_group('software path')
 
 soft_group.add_argument("-vsearch", metavar="<STR>", help="vsearch path" +\
-						" directory (only needed if vsearch is not in PATH)")
+						"(only needed if vsearch is not in $PATH)")
 
 soft_group.add_argument("-threads", metavar="<INT>", help="threads for vsearch",
 						default=2)
 
 soft_group.add_argument('-cid', metavar='FLOAT', type=float, default=0.98, 
 						dest='cluster_identity',
-						help="clustering identity rate [0.98]")
+						help="identity for clustering [0.98]")
 
 ## filter group  ##
-filter_parser = argparse.ArgumentParser(add_help=False)
+filter_parser = argparse.ArgumentParser(add_help=False,
+	description="Use the raw whole dataset (Only adapters should be removed)!")
 
 filter_group = filter_parser.add_argument_group('filter arguments')
 
 filter_group.add_argument("-raw", metavar="<STR>", required=True,
-						help="raw fastq file")
+						help="input raw singled-end fastq file, (Phred33)")
 
-filter_group.add_argument("-e", metavar="<INT>", type=int, default=10,
-						help="expected error number threshod [10]")
+filter_group.add_argument("-e", metavar="<INT>", type=int, dest="expected_err",
+						help="expected error number threshod, P = 10–Q/10, default=10")
+
+filter_group.add_argument("-q", metavar="<INT>", type=int, dest="quality",nargs=2,
+						help="filter by quality method,  Q = –10 log10(P),\n" +\
+						"filter out low quality reads. example: 20 5, it means\n" +\
+						"dropping read which contains more than 5 percent of \n" +\
+						"quality score < 20 bases.")
+
+filter_group.add_argument("-n", metavar="<INT>", type=int, default=1,
+						help="remove reads containing [INT] Ns, default=1")
 
 #------------------------------------------------------------------------------
 
 ## assign group ##
-assign_parser = argparse.ArgumentParser(add_help=False)
+assign_parser = argparse.ArgumentParser(add_help=False,
+	description="assing clean reads to samples by unique tag sequence with 100% similarity")
 
 assign_group = assign_parser.add_argument_group('assign arguments')
 
 assign_group.add_argument("-primer", metavar="<STR>", required=True,
-							help="taged primer list, like following lines: \n" +\
-							"Rev001	AAGCTAAACTTCAGGGTGACCAAAAAATCA" +\
-							"For001	AAGCGGTCAACAAATCATAAAGATATTGG" +\
-							"..." +\
+							help="taged primer list, like following lines:\n" +\
+							"Rev001	AAGCTAAACTTCAGGGTGACCAAAAAATCA\n" +\
+							"For001	AAGCGGTCAACAAATCATAAAGATATTGG\n" +\
+							"...\n" +\
 							"this format is necessary!")
 
 assign_group.add_argument("-outdir", metavar="<STR>", default='assigned', 
@@ -101,13 +114,13 @@ assembly_group.add_argument('-max', metavar='INT', type=int, default=90, dest='m
 							help="maximum length of overlap [90]")
 
 assembly_group.add_argument('-oid', metavar='FLOAT', type=float, default=0.95, dest='overlap_identity',
-							help="cutoff of identity of overlap region [0.95]")
+							help="minimun identity of overlap region [0.95]")
 
 assembly_group.add_argument('-tp', metavar='INT', type=int, dest='cluster_number_needKeep',
-							default=2, help="how many clusters using in assembly.")
+							help="how many clusters using in assembly. default=2")
 
 assembly_group.add_argument('-ab', metavar='INT', type=int, dest='abundance_threshod',
-							help="keep all clusters to assembly if abundance >=INT ")
+							help="keep all clusters to assembly if its abundance >=INT ")
 
 assembly_group.add_argument('-seqs_lim', metavar='INT', type=int,
 					 		default=0, help="reads number limitation. [0]")
@@ -116,19 +129,19 @@ assembly_group.add_argument('-len', metavar='INT', type=int, default=400, dest='
 							help="standard reads length [400]")
 
 assembly_group.add_argument('-mode', metavar='INT', type=int, choices=[1,2], default=1,
-							help="modle 1 is to cluster and keep 3 clusters with most abundance" +\
-                         	"modle 2 is to make a consensus sequence using all reads or all" +\
-                         	"codon checked reads if you set \"-rc\" " +\
-                         	"* --cid is invaild in this mode")
+							help="modle 1 is to cluster and keep most [-tp] abundance clusters,\n" +\
+							"or clusters abundance more than [-ab], and then make a consensus\n" +\
+							"sequence for each cluster. modle 2 is directly to make only \n" +\
+							"consensus sequence without clustering.")
 
 assembly_group.add_argument('-rc', dest='reads_check', action="store_true",
-							help="whether to check reads' codon translation")
+							help="whether to check amino acid translation for reads")
 
 assembly_group.add_argument('-cc', dest='coi_check', action="store_true",
-							help="whether to check final COI contig's condon translation") 
+							help="whether to check final COI contig's amino acid translation") 
 
 assembly_group.add_argument('-codon', metavar='INT', type=int, dest="codon_table", default=5,
-							help="codon table using to check translation [5], " +\
+							help="codon table using to check translation [5], \n" +\
 							"by the way, table [4,5] have same effect for COI gene.")
 
 assembly_group.add_argument('-frame', metavar='INT', type=int,choices=[0,1,2], 
@@ -154,16 +167,18 @@ Description
 	assigning reads to samples, assembly HIFI barcodes (COI sequences). 
 
 Version
-	2.0 2018-11-3
+	1.0 2018-11-3
 
 Author
 	yangchentao at genomics.cn, BGI.
+	mengguanliang at genomics.cn, BGI.
 	
 """
 
-
 parser = argparse.ArgumentParser(prog="HIFI-SE", description=description,
-								formatter_class=argparse.RawDescriptionHelpFormatter)
+#								formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+#								formatter_class=argparse.RawDescriptionHelpFormatter)
+								formatter_class=argparse.RawTextHelpFormatter)
 
 subparsers = parser.add_subparsers(dest='command')
 
@@ -172,22 +187,31 @@ subparsers = parser.add_subparsers(dest='command')
 ## all subcommand
 parser_all = subparsers.add_parser("all", parents=[common_parser, index_parser, soft_parser, 
 									filter_parser, assign_parser, assembly_parser], 
+									formatter_class=argparse.RawTextHelpFormatter,
 									help="run filter, assign and assembly")
 
 ## filter subcommand
 parser_filter = subparsers.add_parser("filter", parents=[common_parser, filter_parser], 
-										help="filter raw reads")
+									formatter_class=argparse.RawTextHelpFormatter,
+									help="filter raw reads")
 
 ## assign subcommand
 parser_assign = subparsers.add_parser("assign", parents=[common_parser,index_parser,
-										only_assign_parser,assign_parser], 
+										only_assign_parser,assign_parser],
+										formatter_class=argparse.RawTextHelpFormatter,
 										help="assign reads to samples")
 
 ## assembly subcommand
 parser_assembly = subparsers.add_parser("assembly", parents=[common_parser,index_parser,
-										only_assembly_parser,soft_parser, assembly_parser], 
+										only_assembly_parser,soft_parser, assembly_parser],
+										formatter_class=argparse.RawTextHelpFormatter, 
 										help="do assembly from input fastq reads,\n" +\
 										"output HIFI barcodes.")
+
+## BOLD_identification
+parser_bold = subparsers.add_parser("bold_identification", parents=[ ],
+									formatter_class=argparse.RawTextHelpFormatter, 
+										help="do taxa identification on BOLD system,\n")
 
 ###############################################################################
 ###############################################################################
@@ -196,6 +220,14 @@ parser_assembly = subparsers.add_parser("assembly", parents=[common_parser,index
 if len(sys.argv) == 1:
 	parser.print_help()
 	parser.exit()
+
+#------------------------BOLD identification--------------------------#
+if sys.argv[1] == 'bold_identification':
+#if args.command == 'bold_identification':
+    sys.argv = sys.argv[1:]
+    sys.exit(bold_identification())
+
+#----------------------- BOLD identification end ---------------------#
 
 if sys.argv[1] in ['all', 'filter', 'assign', 'assembly']:
 	args = parser.parse_args()
@@ -258,9 +290,8 @@ if args.outpre[-1:] == "/":
 
 #-----------------------functions for filtering------------------#
 def exp_e(q):
-	lenq = len(q)
+
 	exp = 0
-	phred = 0
 	tmp = list(q)
 	ascill = [ ord(n) - 33 for n in tmp ]
 
@@ -268,6 +299,18 @@ def exp_e(q):
 		exp += 10 **(-i/10)
 
 	return exp
+
+def lowquality_rate(qual_str,cut_off):
+	low_base = 0
+	tmp = list(qual_str)
+	ascill = [ ord(n) - 33 for n in tmp ]
+
+	for i in ascill:
+		if i < cut_off:
+			low_base += 1
+
+	low_rate = low_base / len(qual_str)
+	return low_rate
 
 #----------------------functions for assigning-------------------#
 
@@ -535,7 +578,6 @@ def mode_vsearch(seqs):
 		for i in range(len(seqs)):
 			TM.write(">" + str(i) + "\n" + seqs[i] + "\n")
 
-	#vsearch_bin = os.path.join(sys.path[0],"vsearch")
 
 	vsearch_cmd = vsearch + \
 				" --cluster_fast " +  temp_fasta + \
@@ -571,7 +613,7 @@ def mode_vsearch(seqs):
 		#if set "-tp", keep top N clusters to assembly
 		keep = args.cluster_number_needKeep
 		sorted_clusters = sorted_clusters[0:keep]
-	else:
+	elif args.abundance_threshod:
 		#if set "-ab", keep all clusters of abundance > ab
 		while(sorted_clusters):
 			item = sorted_clusters.pop()
@@ -580,10 +622,13 @@ def mode_vsearch(seqs):
 			else:
 				sorted_clusters.append(item)
 				break
+	else:
+		# if set nothing, I will set it to -tp 2; 
+		# if second most abundant sequence less than 1/10 of first, remove it!# of course it is just for when tp==2
+		sorted_clusters = sorted_clusters[0:2]
+		if count[sorted_clusters[1]] < count[sorted_clusters[0]]/10:
+			sorted_clusters.pop()
 
-	#if second most abundant sequence less than 1/10 of first, remove it!# of course it is just for when tp==2
-	if len(sorted_clusters) == 2  and count[sorted_clusters[1]] < count[sorted_clusters[0]]/10:
-		sorted_clusters.pop()
 
 	for  k in sorted_clusters:
 		k_seqs = []
@@ -626,11 +671,8 @@ def mode_consensus(seqs):
 	cons_table[consensus] = matrix
 	return cons_table;
 
-
 #------------------------filter process--------------------------#
-if args.command == "all" or args.command == "filter":
-
-	print("Filtering start: " + time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
+if args.command in ['all','filter']:
 
 	filtered_outfile = args.outpre + "_filter_highQual.fq"
 	if os.path.exists(filtered_outfile):
@@ -645,10 +687,27 @@ if args.command == "all" or args.command == "filter":
 		fh =  gzip.open(args.raw,'rt')
 	else:
 		fh = open(args.raw,'r')
+	
+	if args.expected_err and args.quality:
+		print( "Bad arguments:\n\t" +\
+				"-e argument is confilicting with -q," +\
+				" can not using in the same time" )
+		exit()
+	elif args.quality:
+		high_qual = args.quality[0]
+		low_qual_cont = args.quality[1]/100
+		filter_type = 2
+		log.write("Filtering by quality score:\targs.quality\n")
+	else:
+		filter_type = 1
+		log.write("Filtering by expected_err:{}".format(args.expected_err) + "\n")
 
+	print("Filtering start: " + time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
+
+	
 	total = 0
 	clean = 0
-
+	nn = 0
 	id = fh.readline().strip()
 	if id[0] != '@':
 		print("ERROR: {} is not a correct fastq format".format(args.raw))
@@ -658,16 +717,29 @@ if args.command == "all" or args.command == "filter":
 		seq = fh.readline().strip()
 		fh.readline().strip()
 		qual = fh.readline().strip()
-		
-		if exp_e(qual) <= args.e :
-			out.write(id + "\n" + seq + "\n" + "+\n" + qual + "\n" )
-			clean += 1
+		N_count=seq.count('N')
+
+		if N_count < args.n:
+			if filter_type == 1:
+
+				if exp_e(qual) <= args.expected_err :
+					out.write(id + "\n" + seq + "\n" + "+\n" + qual + "\n" )
+					clean += 1
+				else:
+					err.write(id + "\n" + seq + "\n" + "+\n" + qual + "\n")
+			else:
+				if lowquality_rate(qual,high_qual) > low_qual_cont :
+					out.write(id + "\n" + seq + "\n" + "+\n" + qual + "\n" )
+					clean += 1
+				else:
+					err.write(id + "\n" + seq + "\n" + "+\n" + qual + "\n")
 		else:
-			err.write(id + "\n" + seq + "\n" + "+\n" + qual + "\n")
+			nn += 1
 
 		id = fh.readline().strip()
 
 	log.write("total reads:\t{}".format(total) + "\n")
+	log.write("containing N reads:\t{}".format(nn) + "\n")
 	log.write("clean reads:\t{}".format(clean))
 	
 	fh.close()
@@ -824,7 +896,6 @@ if args.command in ['all','assign']:
 	        log.write(i + "\t" + str(count_total[i]) + "\t" + str(count_assigned[i]) + "\n")
 
 	print("Assigning done: " + time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
-
 
 #------------------------assembly process--------------------------#
 if args.command in ['all','assembly']:
@@ -1112,3 +1183,4 @@ if args.command in ['all','assembly']:
 	print("Assembling done: " + time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
 
 print("total run time: {}".format(time.time() -t))
+

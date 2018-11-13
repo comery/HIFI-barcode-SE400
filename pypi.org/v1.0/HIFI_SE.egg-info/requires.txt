@@ -1,0 +1,2 @@
+bold-identification==0.0.20
+biopython>=1.5

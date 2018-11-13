@@ -1,0 +1,12 @@
+HIFI-SE.py
+LICENSE
+MANIFEST.in
+README.md
+changelog
+setup.py
+HIFI-SE/__init__.py
+HIFI_SE.egg-info/PKG-INFO
+HIFI_SE.egg-info/SOURCES.txt
+HIFI_SE.egg-info/dependency_links.txt
+HIFI_SE.egg-info/requires.txt
+HIFI_SE.egg-info/top_level.txt

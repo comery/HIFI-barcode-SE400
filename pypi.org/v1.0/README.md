@@ -3,36 +3,14 @@ The BGISEQ-500 platform has launched a new test sequencing kits capable of singl
 
 
 ### Versions
-#### original_version Perl & Python, rough sources
->0.expected_error.pl   
-1.split_extract.pl  
-2.hificonnect.pl
 
->0.expected_error.py  
-1.split_extract.py  
-2.hificonnect.py  
-
-#### version 1.0 Python
->HIFI-SE.py
-
-### Install
-
-1. directly copy this Python script - HIFI-SE.py, but before using it, make sure that you have installed two required modules:
-	- biopython >= 1.5
-	- bold-identification==0.0.20, you can intall this package by : ```pip install bold-identification```
-
-2. recommendation: ```pip install HIFI-SE``` 
-
+new release: 1.0 2018/11/13
 
 ### Usage (latest)
 
-```shell
-python3 HIFI-SE.py
-```
-or 
 
 ```shell
-./HIFI-SE.py
+HIFI-SE
 ```
 
 ```text
@@ -66,6 +44,12 @@ optional arguments:
 
 ```
 
+#### run in "all"
+Example:
+
+```shell
+HIFI-SE all -outpre hifi -raw test.raw.fastq -index 5 -primer index_primer.list -cid 0.98 -oid 0.95 -seqs_lim 50000 -threads 4 -tp 2
+```
 #### run by steps [filter -> assign -> assembly]
 
 - ```python3 HIFI-SE.py filter ```
@@ -161,18 +145,5 @@ assembly arguments:
   -frame INT      translation start shift [1]
 ```
 
-### quickstart
-#### run in "all"
-Example:
-
-```shell
-python3 HIFI-SE.py all -outpre hifi -raw test.raw.fastq -index 5 -primer index_primer.list -cid 0.98 -oid 0.95 -seqs_lim 50000 -threads 4 -tp 2
-```
-
-### Citation
-this publication is coming soon! if you use this package, please cite:
-
-```text
-Chentao Yang, Shangjin Tan, Guanliang Meng, Shanlin Liu. A new approach to access COI barcode using high throughput Single-End 400 bp sequencing.
-```
-
+#### Github page
+https://github.com/comery/HIFI-barcode-SE400
