@@ -717,13 +717,13 @@ def mode_consensus(seqs):
 #------------------------filter process--------------------------#
 if args.command in ['all', 'filter']:
 
-    filtered_outfile = args.outpre + "_filter_highQual.fq"
+    filtered_outfile = args.outpre + "_filter_highqual.fastq"
     if os.path.exists(filtered_outfile):
         print("WARRNING: " + filtered_outfile + " exists! now overwriting")
     out = open(filtered_outfile, 'w')
 
     #Read sequences.
-    err = open(args.outpre +  "_filter_lowQual.fastq", 'w')
+    err = open(args.outpre +  "_filter_lowqual.fastq", 'w')
     log = open(args.outpre + "_filter_log.txt", 'w')
 
     if os.path.splitext(args.raw)[-1][1:] == "gz":
@@ -859,7 +859,7 @@ if args.command in ['all', 'assign']:
     neg_priF = comp_rev(primerF)
     neg_priR = comp_rev(primerR)
 
-    assigned_list = args.outpre + "_assignlist"
+    assigned_list = args.outpre + "_assign.list"
 
     with open(assigned_list, 'w') as ls:
         sorted_sample = sorted(pris.keys())
@@ -971,7 +971,7 @@ if args.command in ['all', 'assembly']:
     if args.command == 'all':
         args.list = assigned_list #list generated from assign step
 
-    assembly_result = args.outpre + "_assembly.fa"
+    assembly_result = args.outpre + "_assembly.fasta"
     if os.path.exists(assembly_result):
         print("WARRNING:" + assembly_result + "has existed!  overwriting ...")
 
