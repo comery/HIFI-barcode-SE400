@@ -193,8 +193,9 @@ Description
     (COI sequences).
 
 Version
+
+    1.0.0 2018-11-22 formated as PEP8 style
     0.0.1 2018-11-3
-    0.0.4 2018-11-21 formated as PEP8 style
 
 Author
     yangchentao at genomics.cn, BGI.
@@ -204,6 +205,8 @@ Author
 parser = argparse.ArgumentParser(prog="HIFI-SE",
                                  description=description,
                                  formatter_class=argparse.RawTextHelpFormatter)
+
+parser.add_argument('-v', '--version', action='version', version='%(prog)s 1.0.0')
 
 subparsers = parser.add_subparsers(dest='command')
 
@@ -250,26 +253,19 @@ parser_bold = subparsers.add_parser("bold_identification", parents=[],
                                     "on BOLD system,\n")
 
 ###############################################################################
-###############################################################################
 #####---------------------- program execution start ----------------------#####
 
+args = parser.parse_args()
+#-----------------------BOLD identification----------------------#
 if len(sys.argv) == 1:
     parser.print_help()
     parser.exit()
 
-#------------------------BOLD identification--------------------------#
 if sys.argv[1] == 'bold_identification':
 #if args.command == 'bold_identification':
     sys.argv = sys.argv[1:]
     sys.exit(bold_identification())
 
-#----------------------- BOLD identification end ---------------------#
-
-if sys.argv[1] in ['all', 'filter', 'assign', 'assembly']:
-    args = parser.parse_args()
-else:
-    parser.print_help()
-    parser.exit()
 
 #-----------------------arguments checking-----------------------#
 ## softwares and databases
