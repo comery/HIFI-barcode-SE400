@@ -969,7 +969,7 @@ if args.command in ['all', 'assembly']:
 
     assembly_result = args.outpre + "_assembly.fasta"
     if os.path.exists(assembly_result):
-        print("WARRNING:" + assembly_result + "has existed!  overwriting ...")
+        print("WARRNING: " + assembly_result + " has existed!  overwriting ...")
 
     fh_out = open(assembly_result, 'w')
     fh_log = open(args.outpre + "_assembly.log", 'w')

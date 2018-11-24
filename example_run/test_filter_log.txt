@@ -1,4 +1,0 @@
-Filtering by expected_err:5
-total reads:	4814
-containing N reads:	0
-clean reads:	2870
