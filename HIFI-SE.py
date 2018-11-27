@@ -393,6 +393,9 @@ if sys.argv[1] == "bold_identification":
 # -----------------------arguments checking-----------------------#
 ## softwares and databases
 def check_program_involed(cmd):
+    '''
+    check program involed whether is executable!
+    '''
     result = (
         subprocess.call(
             "type %s" % cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
@@ -407,6 +410,9 @@ def check_program_involed(cmd):
 
 
 def files_exist_0_or_1(filelist):
+    '''
+    check files involed whether are existing!
+    '''
     num = 0
     for file in filelist:
         if os.path.exists(file):
@@ -445,12 +451,16 @@ if errors_found > 0:
     parser.exit("Errors found! Exit!")
 
 
-if args.outpre[-1:] == "/":
+if args.outpre.endswith("/"):
     print("outpre is in bad format!")
-    eixt()
+    exit()
 
 # -----------------------functions for filtering------------------#
 def exp_e(q):
+    '''
+    expected error number(E*) = sum(P), where P is
+    the probability that the base call is incorrect.
+    '''
     exp = 0
     tmp = list(q)
     ascill = [ord(n) - 33 for n in tmp]
@@ -462,6 +472,9 @@ def exp_e(q):
 
 
 def lowquality_rate(qual_str, cut_off):
+    '''
+    calculate the rate of low quality base in read.
+    '''
     low_base = 0
     tmp = list(qual_str)
     ascill = [ord(n) - 33 for n in tmp]
@@ -477,7 +490,7 @@ def lowquality_rate(qual_str, cut_off):
 # ----------------------functions for assigning-------------------#
 
 def comp_rev(sequence):
-    # make a sequence complement #
+    # make a sequence complement and reversed #
     sequence.upper()
     sequence = sequence.replace("A", "t")
     sequence = sequence.replace("T", "a")
@@ -508,8 +521,8 @@ def complement_and_reverse(reads_list):
     return new_reads_list
 
 
-# ----count matched bases of two sequences----#
 def match(str1, str2):
+    # ----count matched bases of two sequences----#
     matched = 0
     for base in range(len(str1)):
         if str1[base] == str2[base]:
@@ -518,9 +531,9 @@ def match(str1, str2):
     return identity
 
 
-# ---------translate_dnaseq------------#
 
 def translate_dnaseq(seq):
+    # ---------translate_dnaseq------------#
     l_dna = len(seq)
     if l_dna % 3 is not 0:
         seq = seq[: -(l_dna % 3)]
@@ -534,8 +547,8 @@ def translate_dnaseq(seq):
         return True
 
 
-# ----------read fastq file-----------#
 def read_fastq(fastq_file, ori):
+    # ----------read fastq file-----------#
     if fastq_file.endswith(".gz"):
         fh_file = gzip.open(fastq_file, "rt")
     else:
@@ -609,8 +622,8 @@ def read_fastq(fastq_file, ori):
     return seq_checked
 
 
-# ---------------coi_check------------#
 def coi_check(contig):
+    # ---------------coi_check------------#
     for_trim = args.index + 25 + 1
     rev_trim = args.index + 26
     contig = contig[for_trim:]
@@ -622,8 +635,8 @@ def coi_check(contig):
         return False
 
 
-# ---------------depth_table----------#
 def depth_table(seqs):
+    # ---------------depth_table----------#
     llen = len(seqs[0])
     m = 0
     consensus = ""
@@ -652,6 +665,7 @@ def depth_table(seqs):
 
 
 def report_depth(table, title, seq, read_len, step, ori):
+    # report the depth of each site
     depth_sum = {}
     reports = []
     four_bases = ("A", "T", "C", "G")
@@ -734,7 +748,7 @@ def mode_identical(seqs):
 
 
 def merge_matrix(matrix1, matrix2):
-
+    # merge two matrix
     for i in range(len(matrix2)):
         matrix1.append(matrix2[i])
 
@@ -1052,12 +1066,10 @@ if args.command in ["all", "assign"]:
                     count_total[FH[headf]] += 1
                 else:
                     count_total[FH[headf]] = 1
-                if (
-                    primerF not in tmp
+                if (primerF not in tmp
                     and primerR not in tmp
                     and neg_priF not in tmp
-                    and neg_priR not in tmp
-                ):
+                    and neg_priR not in tmp):
                     filehandle[FH[headf]].write(
                         "@" + FH[headf] + "_" + str(seqnum) + "\n" + seq + "\n"
                     )
@@ -1076,12 +1088,10 @@ if args.command in ["all", "assign"]:
                     count_total[FH[headr]] += 1
                 else:
                     count_total[FH[headr]] = 1
-                if (
-                    primerF not in tmp
+                if (primerF not in tmp
                     and primerR not in tmp
                     and neg_priF not in tmp
-                    and neg_priR not in tmp
-                ):
+                    and neg_priR not in tmp):
                     filehandle[FH[headr]].write(
                         "@" + FH[headr] + "_" + str(seqnum) + "\n" + seq + "\n"
                     )
