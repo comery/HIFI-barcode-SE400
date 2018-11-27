@@ -404,7 +404,7 @@ def translate_dnaseq(seq):
 
 #----------read fastq file-----------#
 def read_fastq(fastq_file, ori):
-    if os.path.splitext(fastq_file)[-1][1:] == "gz":
+    if fastq_file.endwith(".gz"):
         fh_file = gzip.open(fastq_file, 'rt')
     else:
         fh_file = open(fastq_file, 'r')
@@ -722,7 +722,7 @@ if args.command in ['all', 'filter']:
     err = open(args.outpre +  "_filter_lowqual.fastq", 'w')
     log = open(args.outpre + "_filter_log.txt", 'w')
 
-    if os.path.splitext(args.raw)[-1][1:] == "gz":
+    if args.raw.endwith(".gz"):
         fh = gzip.open(args.raw, 'rt')
     else:
         fh = open(args.raw, 'r')
@@ -1012,6 +1012,7 @@ if args.command in ['all', 'assembly']:
 
     #--------------main-----------------------#
     barcodes_count = 0
+    run_again = []
     try:
         with open(args.list) as fh_list:
             lines = fh_list.readlines()
@@ -1021,6 +1022,7 @@ if args.command in ['all', 'assembly']:
 
 
     for line in lines:
+        success_or_not = False
         line = line.rstrip()
         tmp_list = line.split()
         if len(tmp_list) is not 2:
@@ -1032,13 +1034,15 @@ if args.command in ['all', 'assembly']:
             for_name = os.path.basename(forward).split('.')[0]
             rev_name = os.path.basename(reverse).split('.')[0]
             outname = for_name + "_" + rev_name
+            short_outname = outname[-3:]
             fh_log.write("//processing " + outname + "\n")
 
             seq_checked_for = read_fastq(forward, 'f')
             seq_checked_rev = read_fastq(reverse, 'r')
 
             if len(seq_checked_for) == 0 or len(seq_checked_rev) == 0:
-                fh_log.write("eithor Forward or Reverse file is empty!" + "\n")
+                fh_log.write("Eithor Forward or Reverse file is empty!" + "\n")
+                run_again.append(short_outname)
                 continue
 
             #here table_f and table_r are two quotes of two dicts, key is consensus sequence
@@ -1070,8 +1074,6 @@ if args.command in ['all', 'assembly']:
                                    reverse=True)
 
             ##-----------anchoring overlap site--------#
-
-            short_outname = outname[-3:]
             i = 0
             j = 0
             len_conF = len(consensus_for)
@@ -1126,6 +1128,7 @@ if args.command in ['all', 'assembly']:
                                         reverse=True)
 
                     if len(candidates) > 0:
+                        success_or_not = True
                         potenial = candidates[0]
                         s0 = read0[-potenial:]
                         s1 = read1[0:potenial]
@@ -1218,8 +1221,8 @@ if args.command in ['all', 'assembly']:
                                                 str(rev_depth) + "]"
                                     elif for_depth == rev_depth:
                                         fh_log.write(
-                                            "short_outname\ttmp_loca1\t \
-                                            could be a heterozygosis site!\n")
+                                            short_outname + "\t" + tmp_loca1 +\
+                                            "\tcould be a heterozygosis site!\n")
                                         correct += s0[p]
                                         info = "[F=" + s0[p] +":" +\
                                                 str(for_depth) +\
@@ -1280,6 +1283,8 @@ if args.command in ['all', 'assembly']:
                         fh_log.write(
                             "<<" + str(pos1) + "-" + str(pos2) +\
                             " has no result!\n")
+        if success_or_not == False:
+          run_again.append(short_outname)
     fh_out.close()
     if args.coi_check:
         fh_out_checked.close()
@@ -1289,6 +1294,15 @@ if args.command in ['all', 'assembly']:
         os.system(rm_tmp_cmd)
 
     print("Total barcodes generated: {}".format(barcodes_count))
+    rerun_list = args.outpre + "_rerun.list"
+    print("Kindly recommend you to run these samples in "+\
+          rerun_list + " again, with -rc option:\n")
+    print("------")
+    with open(args.outpre + "_rerun.list",'w') as rr:
+        for r in run_again:
+            rr.write(r + "\n")
+            print(r)
+    print("------")
     print("Assembling done: " +\
           time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
 
