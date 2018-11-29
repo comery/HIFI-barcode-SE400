@@ -491,7 +491,7 @@ def lowquality_rate(qual_str, cut_off):
 
 def comp_rev(sequence):
     # make a sequence complement and reversed #
-    sequence.upper()
+    sequence = sequence.upper() # [a bug fixed], reported by Wu Ping 20181129
     sequence = sequence.replace("A", "t")
     sequence = sequence.replace("T", "a")
     sequence = sequence.replace("C", "g")
@@ -503,7 +503,7 @@ def comp_rev(sequence):
 
 def complementation(sequence):
     # make a sequence complement #
-    sequence.upper()
+    sequence = sequence.upper()
     sequence = sequence.replace("A", "t")
     sequence = sequence.replace("T", "a")
     sequence = sequence.replace("C", "g")
@@ -512,7 +512,7 @@ def complementation(sequence):
 
 
 def complement_and_reverse(reads_list):
-    # make a sequence reverse and complement #
+    # make a list of sequences reverse and complement #
     new_reads_list = []
     for read in reads_list:
         read = complementation(read)
