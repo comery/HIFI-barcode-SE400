@@ -29,7 +29,10 @@ common_parser = argparse.ArgumentParser(add_help=False)
 common_group = common_parser.add_argument_group("common arguments")
 
 common_group.add_argument(
-    "-outpre", metavar="<STR>", required=True, help="prefix for output files"
+    "-outpre",
+    metavar="<STR>",
+    required=True,
+    help="prefix for output files",
 )
 ## index group ##
 index_parser = argparse.ArgumentParser(add_help=False)
@@ -247,15 +250,13 @@ assembly_group.add_argument(
     help="whether to check amino acid translation\n" + "for reads, default not",
 )
 
-assembly_group.add_argument(
-    "-cc",
-    dest="coi_check",
-    action="store_true",
-    help="whether to check final COI contig's\n"
-    + "amino acid translation, default not",
+# translation need
+trans_parser = argparse.ArgumentParser(add_help=False)
+trans_group = trans_parser.add_argument_group(
+    "translation arguments(when set -rc or -cc)"
 )
 
-assembly_group.add_argument(
+trans_group.add_argument(
     "-codon",
     metavar="INT",
     type=int,
@@ -264,7 +265,7 @@ assembly_group.add_argument(
     help="codon usage table used to check" + "translation, default=5",
 )
 
-assembly_group.add_argument(
+trans_group.add_argument(
     "-frame",
     metavar="INT",
     type=int,
@@ -277,7 +278,7 @@ assembly_group.add_argument(
 ## only assembly need
 only_assembly_parser = argparse.ArgumentParser(add_help=False)
 only_assembly_group = only_assembly_parser.add_argument_group(
-    "when only run assembly arguments"
+    "only run assembly arguments(not all)"
 )
 
 only_assembly_group.add_argument(
@@ -287,6 +288,52 @@ only_assembly_group.add_argument(
     required=True,
     help="input file, fastq file list. [required]",
 )
+
+polish_parser = argparse.ArgumentParser(
+    description="polish all assemblies, \n"
+    + "to make a confident COI barcode"
+    + "reference.",
+    add_help=False,
+)
+polish_group = polish_parser.add_argument_group(
+    "polish arguments"
+)
+
+polish_group.add_argument(
+    "-i",
+    metavar="STR",
+    type=str,
+    dest="coi_input",
+    required=True,
+    help="COI barcode assemblies",
+)
+
+polish_group.add_argument(
+    "-cc",
+    dest="coi_check",
+    action="store_false",
+    help="whether to check final COI contig's\n"
+    + "amino acid translation, default yes",
+)
+
+polish_group.add_argument(
+    "-cov",
+    metavar="INT",
+    type=int,
+    dest="min_coverage",
+    default=5,
+    help="minimun coverage of 5' or 3' end allowed, default=5",
+)
+
+polish_group.add_argument(
+    "-l",
+    metavar="INT",
+    type=int,
+    dest="coi_length",
+    default=650,
+    help="minimun length of COI barcode allowed, default=650",
+)
+
 # ------------------------------------------------------------------------------------------------
 
 ###############################################################################
@@ -302,6 +349,7 @@ Description
 
 Version
 
+    1.0.1 2018-12-2  Add "polish" function
     1.0.0 2018-11-22 formated as PEP8 style
     0.0.1 2018-11-3
 
@@ -332,6 +380,7 @@ parser_all = subparsers.add_parser(
         filter_parser,
         assign_parser,
         assembly_parser,
+        trans_parser,
     ],
     formatter_class=argparse.RawTextHelpFormatter,
     help="run filter, assign and assembly",
@@ -348,7 +397,10 @@ parser_filter = subparsers.add_parser(
 ## assign subcommand
 parser_assign = subparsers.add_parser(
     "assign",
-    parents=[common_parser, index_parser, only_assign_parser, assign_parser],
+    parents=[common_parser,
+             index_parser,
+             only_assign_parser,
+             assign_parser],
     formatter_class=argparse.RawTextHelpFormatter,
     help="assign reads to samples",
 )
@@ -356,15 +408,25 @@ parser_assign = subparsers.add_parser(
 ## assembly subcommand
 parser_assembly = subparsers.add_parser(
     "assembly",
-    parents=[
-        common_parser,
-        index_parser,
-        only_assembly_parser,
-        soft_parser,
-        assembly_parser,
-    ],
+    parents=[common_parser,
+             index_parser,
+             only_assembly_parser,
+             soft_parser,
+             assembly_parser,
+             trans_parser],
     formatter_class=argparse.RawTextHelpFormatter,
     help="do assembly from input fastq\n" + "reads, output HIFI barcodes.",
+)
+
+## polish subcommand
+parser_polish = subparsers.add_parser(
+    "polish",
+    parents=[polish_parser,
+            index_parser,
+            trans_parser,],
+    formatter_class=argparse.RawTextHelpFormatter,
+    help="polish COI barcode assemblies,\n"
+    + "output confident barcodes."
 )
 
 ## BOLD_identification
@@ -436,6 +498,8 @@ elif args.command == "assign":
     errors_found += files_exist_0_or_1([args.primer])
 elif args.command == "assembly":
     errors_found += files_exist_0_or_1([args.list])
+elif args.command == "polish":
+    errors_found += files_exist_0_or_1([args.coi_input])
 else:
     parser.print_help()
     parser.exit()
@@ -451,7 +515,7 @@ if errors_found > 0:
     parser.exit("Errors found! Exit!")
 
 
-if args.outpre.endswith("/"):
+if hasattr(args, "outpre") and args.outpre.endswith("/"):
     print("outpre is in bad format!")
     exit()
 
@@ -532,7 +596,7 @@ def match(str1, str2):
 
 
 
-def translate_dnaseq(seq):
+def translate_dnaseq(seq, codon):
     # ---------translate_dnaseq------------#
     l_dna = len(seq)
     if l_dna % 3 is not 0:
@@ -540,7 +604,7 @@ def translate_dnaseq(seq):
         # print("your sequence lenght is not tripple" + \
         # "but no worries, I have trimmed well format")
     coding_dna = Seq(seq, generic_dna)
-    protein = coding_dna.translate(table=args.codon_table)
+    protein = coding_dna.translate(table=codon)
     if "*" in protein:
         return False
     else:
@@ -579,7 +643,7 @@ def read_fastq(fastq_file, ori):
                 # forward primer length is 25
                 tmp_remove = args.index + 25 + args.frame
                 tmp = tmp[tmp_remove:]
-                if translate_dnaseq(tmp):
+                if translate_dnaseq(tmp, args.codon_table):
                     seq_checked.append(sequence)
                     good += 1
             else:
@@ -594,7 +658,7 @@ def read_fastq(fastq_file, ori):
                     tmp = tmp[0 : -(seq_len % 3)]
                 # reverse #
                 tmp = tmp[::-1]
-                if translate_dnaseq(tmp):
+                if translate_dnaseq(tmp, args.codon.table):
                     seq_checked.append(sequence)
                     good += 1
         else:
@@ -622,14 +686,14 @@ def read_fastq(fastq_file, ori):
     return seq_checked
 
 
-def coi_check(contig):
+def coi_check(contig, codon):
     # ---------------coi_check------------#
     for_trim = args.index + 25 + 1
     rev_trim = args.index + 26
     contig = contig[for_trim:]
     # contig = contig[0:for_trim] #bug!
     contig = contig[:-rev_trim]
-    if translate_dnaseq(contig):
+    if translate_dnaseq(contig, codon):
         return True
     else:
         return False
@@ -876,6 +940,11 @@ def mode_consensus(seqs):
     cons_table[consensus] = matrix
     return cons_table
 
+def addtwodimdict(thedict, key_a, key_b, val):
+    if key_a in thedict:
+        thedict[key_a].update({key_b: val})
+    else:
+        thedict.update({key_a:{key_b: val}})
 
 # ------------------------filter process--------------------------#
 if args.command in ["all", "filter"]:
@@ -1153,10 +1222,6 @@ if args.command in ["all", "assembly"]:
     fh_log = open(args.outpre + "_assembly.log", "w")
     fh_depth = open((args.outpre + "_assembly.depth"), "w")
 
-    if args.coi_check:
-        out_checked = assembly_result + ".checked"
-        fh_out_checked = open(out_checked, "w")
-
     fh_log.write("## assigned reads list file = " + args.list + "\n")
 
     if args.seqs_lim:
@@ -1190,6 +1255,7 @@ if args.command in ["all", "assembly"]:
     # --------------main-----------------------#
     barcodes_count = 0
     run_again = []
+    run_again_file = ""
     try:
         with open(args.list) as fh_list:
             lines = fh_list.readlines()
@@ -1219,6 +1285,7 @@ if args.command in ["all", "assembly"]:
             if len(seq_checked_for) == 0 or len(seq_checked_rev) == 0:
                 fh_log.write("Eithor Forward or Reverse file is empty!" + "\n")
                 run_again.append(short_outname)
+                run_again_file += line + "\n"
                 continue
 
             # here table_f and table_r are two quotes of two dicts, key is consensus sequence
@@ -1536,32 +1603,6 @@ if args.command in ["all", "assembly"]:
                             + "\n"
                         )
                         # if check result, and ok so write into output_checked file #
-                        if args.coi_check and coi_check(makeup_consensus):
-                            fh_out_checked.write(
-                                ">"
-                                + short_outname
-                                + "_"
-                                + str(pos1)
-                                + "-"
-                                + str(pos2)
-                                + ";"
-                                + str(abundance_f)
-                                + "_"
-                                + str(abundance_r)
-                                + ";size="
-                                + c_size
-                                + ";overPos="
-                                + str(potenial)
-                                + ";oid="
-                                + this_oid
-                                + "%"
-                                + ";len="
-                                + len_makeup_consensus
-                                + ";check=TRUE"
-                                + "\n"
-                                + makeup_consensus
-                                + "\n"
-                            )
 
                     else:
                         fh_log.write(
@@ -1569,27 +1610,90 @@ if args.command in ["all", "assembly"]:
                         )
         if success_or_not == False:
             run_again.append(short_outname)
+            run_again_file += line + "\n"
     fh_out.close()
-    if args.coi_check:
-        fh_out_checked.close()
 
     if args.mode == 1 and args.cluster_identity < 1:
         rm_tmp_cmd = "rm temp.fa.* temp.uc.*"
         os.system(rm_tmp_cmd)
 
     print("Total barcodes generated: {}".format(barcodes_count))
-    rerun_list = args.outpre + "_rerun.list"
-    print(
-        "Kindly recommend you to run these samples in "
-        + rerun_list
-        + " again, with -rc option:\n"
-    )
-    print("------")
-    with open(args.outpre + "_rerun.list", "w") as rr:
-        for r in run_again:
-            rr.write(r + "\n")
-            print(r)
-    print("------")
     print("Assembling done: " + time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
+
+    # whether to run second round of assembly
+    if len(run_again) > 0:
+        rerun_list = args.outpre + "_rerun.list"
+        print(
+            "Kindly recommend you to run these samples in "
+            + rerun_list
+            + " again,\nwith -rc option, or with a larger number of [-tp],"
+            + " or try mode 2:\n"
+        )
+        print("------")
+        with open(args.outpre + "_rerun.list", "w") as rr:
+            rr.write(run_again_file)
+            for r in run_again:
+                print(r)
+        print("------")
+        print("And, finally run: 'HIFI-SE.py polish' to polish assemblies.")
+
+#--------------------polish process-------------------------------------------
+if args.command == "polish":
+    from Bio import SeqIO
+    polish_outfile = args.coi_input + ".confident"
+    coiout = open(polish_outfile,'w')
+    with open(args.coi_input, "r") as handle:
+        HASH_sam_abu = {}
+        ARR_sam_abu = {}
+        for record in SeqIO.parse(handle, "fasta"):
+            item_id = record.id.split(";")
+            sample_tag = item_id[0].split("_")
+            sample = sample_tag[0]
+            coverages = item_id[1].split("_")
+            for_coverage = int(coverages[0])
+            rev_coverage = int(coverages[1])
+            abu = (for_coverage + rev_coverage) / 2
+            length = len(record.seq)
+            # remove low record with low coverage or short length
+            if (for_coverage < args.min_coverage
+                or rev_coverage < args.min_coverage
+                or length < args.coi_length):
+
+                continue
+
+            elif args.coi_check and coi_check(str(record.seq), args.codon_table) == False:
+                print(sample_tag + "translation failed")
+                continue
+
+            else:
+                addtwodimdict(HASH_sam_abu, sample, abu, record.seq)
+                if sample in ARR_sam_abu.keys():
+                    ARR_sam_abu[sample].append(abu)
+                else:
+                    ARR_sam_abu[sample] = []
+                    ARR_sam_abu[sample].append(abu)
+
+    # pick up most confident COI barcode.
+    sorted_samples = sorted(ARR_sam_abu.keys())
+    polished_count = len(sorted_samples)
+    for s in sorted_samples:
+        abus = sorted(ARR_sam_abu[s])
+        top_abu = abus[0]
+        seq = HASH_sam_abu[s][top_abu]
+        seqlen = len(seq)
+        coiout.write(
+            ">"
+            + str(s)
+            + ";size="
+            + str(top_abu)
+            + ";"
+            + "len="
+            + str(seqlen)
+            + "\n"
+            + str(seq)
+            + "\n"
+        )
+    coiout.close()
+    print("Total barcodes polished: {}".format(polished_count))
 
 print("total run time: {}".format(time.time() - t))
