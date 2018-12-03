@@ -364,7 +364,11 @@ parser = argparse.ArgumentParser(
     formatter_class=argparse.RawTextHelpFormatter,
 )
 
-parser.add_argument("-v", "--version", action="version", version="%(prog)s 1.0.0")
+parser.add_argument(
+    "-v", "--version",
+    action="version",
+    version="%(prog)s 1.0.1"
+)
 
 subparsers = parser.add_subparsers(dest="command")
 
