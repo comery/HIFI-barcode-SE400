@@ -109,6 +109,13 @@ filter_group.add_argument(
 )
 
 filter_group.add_argument(
+    "-trim",
+    dest="trim",
+    action="store_true",
+    help="whether to trim 5' end of read, it adapt to -e mode\n"
+    + "or -q mode",
+)
+filter_group.add_argument(
     "-n",
     metavar="<INT>",
     type=int,
@@ -145,6 +152,27 @@ assign_group.add_argument(
     default="assigned",
     help="output directory for assignment," + 'default="assigned"',
 )
+
+assign_group.add_argument(
+    "-tmis",
+    metavar="<INT>",
+    type=int,
+    dest="tag_mismatch",
+    default=0,
+    help="mismatch number in tag when demultiplexing, default=0",
+)
+
+assign_group.add_argument(
+    "-pmis",
+    metavar="<INT>",
+    type=int,
+    dest="primer_mismatch",
+    default=1,
+    help="mismatch number in primer when demultiplexing, default=1",
+)
+
+
+
 ## only assign need
 only_assign_parser = argparse.ArgumentParser(add_help=False)
 only_assign_group = only_assign_parser.add_argument_group(
@@ -349,6 +377,10 @@ Description
 
 Version
 
+    1.1.0 2018-12-10  Add "-trim" function in filter;
+        accept mistmatched in tag or primer sequence,
+        when demultiplexing; accept uneven reads to
+        assembly.
     1.0.1 2018-12-2  Add "polish" function
     1.0.0 2018-11-22 formated as PEP8 style
     0.0.1 2018-11-3
@@ -367,7 +399,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument(
     "-v", "--version",
     action="version",
-    version="%(prog)s 1.0.1"
+    version="%(prog)s 1.1.0"
 )
 
 subparsers = parser.add_subparsers(dest="command")
@@ -520,7 +552,7 @@ if errors_found > 0:
 
 
 if hasattr(args, "outpre") and args.outpre.endswith("/"):
-    print("outpre is in bad format!")
+    print("outpre is in bad format! no \"/\"")
     exit()
 
 # -----------------------functions for filtering------------------#
@@ -538,6 +570,27 @@ def exp_e(q):
 
     return exp
 
+def exp_e_trim(seq, qual, E):
+    '''
+    expected error number(E*) = sum(P), where P is
+    the probability that the base call is incorrect.
+    the difference between above exp_e funciton is
+    that this function will trim the bad based with
+    low quality in the 5' end.
+    '''
+    exp = 0
+    good_seq = ''
+    good_qual = ''
+    for i in range(len(seq)):
+        if exp < E:
+            good_seq += seq[i]
+            good_qual += qual[i]
+            ascill_i = ord(qual[i]) - 33
+            exp += 10 ** (-ascill_i / 10)
+        else:
+            return (good_seq, good_qual)
+            break
+    return (good_seq, good_qual)
 
 def lowquality_rate(qual_str, cut_off):
     '''
@@ -554,37 +607,98 @@ def lowquality_rate(qual_str, cut_off):
     low_rate = low_base / len(qual_str)
     return low_rate
 
+def lowquality_rate_trim(seq, qual, quality_demand, low_rate):
+    '''
+    calculate the rate of low quality base in read.
+    '''
+    low_base = 0
+    good_seq = ''
+    good_qual = ''
+    llen = len(seq)
+    for i in range(llen):
+        ascill_i = ord(qual[i]) - 33
+        if low_base < llen * low_rate:
+            good_seq += seq[i]
+            good_qual += qual[i]
+            if ascill_i >= quality_demand:
+                # it's a good base
+                1
+            else:
+                low_base += 1
+        else:
+            return (good_seq, good_qual)
+            break
+
+    return (good_seq, good_qual)
+
 
 # ----------------------functions for assigning-------------------#
+def complementation(sequence):
+    # make a sequence complement #
+    # replace function of string is too low!
+    sequence = sequence.upper() ## [a bug fixed], reported by Wu Ping 20181129
+    transtable = str.maketrans('ATCG', 'TAGC')
+    sequence = sequence.translate(transtable)
+    return sequence
 
 def comp_rev(sequence):
     # make a sequence complement and reversed #
-    sequence = sequence.upper() # [a bug fixed], reported by Wu Ping 20181129
-    sequence = sequence.replace("A", "t")
-    sequence = sequence.replace("T", "a")
-    sequence = sequence.replace("C", "g")
-    sequence = sequence.replace("G", "c")
-    return sequence.upper()[::-1]
+    sequence = complementation(sequence)
+    return sequence[::-1]
 
+
+def detect_mis(f, r, dict):
+    tag_mis = 0
+    primer_mis = 0
+    strs = [f, r]
+    while(strs):
+        s1 = strs.pop()
+        for s2 in dict.keys():
+            if len(s1) == len(s2):
+                tag_mis = 0
+                primer_mis = 0
+                for base in range(len(s1)):
+                    if s1[base] is not s2[base]:
+                        if base < args.index:
+                            tag_mis += 1
+                        else:
+                            primer_mis += 1
+                if (tag_mis <= args.tag_mismatch
+                    and primer_mis <= args.primer_mismatch):
+                    print(tag_mis, primer_mis)
+                    goal = dict[s2]
+                    break
+                else:
+                    goal = ''
+    
+    if len(goal) > 0:
+        return goal
+    else:
+        return False
+
+
+def dis_barcode(barcode_list):
+    # ----count matched bases of two barcodes----#
+    dis = []
+    while(barcode_list):
+        b1 = barcode_list.pop()
+        for b2 in barcode_list:
+            mismatch = 0
+            for base in range(len(b1)):
+                if b1[base] is not b2[base]:
+                    mismatch += 1
+            dis.append(mismatch)
+    min_dis = min(dis)
+    max_dis = max(dis)
+    return (min_dis, max_dis)
 
 # ----------------------functions for assembling------------------#
 
-def complementation(sequence):
-    # make a sequence complement #
-    sequence = sequence.upper()
-    sequence = sequence.replace("A", "t")
-    sequence = sequence.replace("T", "a")
-    sequence = sequence.replace("C", "g")
-    sequence = sequence.replace("G", "c")
-    return sequence.upper()
-
-
-def complement_and_reverse(reads_list):
+def comp_rev_list(reads_list):
     # make a list of sequences reverse and complement #
     new_reads_list = []
     for read in reads_list:
-        read = complementation(read)
-        new_reads_list.append(read[::-1])
+        read = comp_rev(read)
 
     return new_reads_list
 
@@ -597,7 +711,6 @@ def match(str1, str2):
             matched += 1
     identity = matched / len(str1)
     return identity
-
 
 
 def translate_dnaseq(seq, codon):
@@ -957,9 +1070,14 @@ if args.command in ["all", "filter"]:
     if os.path.exists(filtered_outfile):
         print("WARRNING: " + filtered_outfile + " exists! now overwriting")
     out = open(filtered_outfile, "w")
-
-    # Read sequences.
-    err = open(args.outpre + "_filter_lowqual.fastq", "w")
+    # ini state
+    total = 0
+    clean = 0
+    nn = 0
+    if args.trim == True:
+        trimed_base = 0
+    else:
+        err = open(args.outpre + "_filter_lowqual.fastq", "w")
     log = open(args.outpre + "_filter_log.txt", "w")
 
     if args.raw.endswith(".gz"):
@@ -970,7 +1088,7 @@ if args.command in ["all", "filter"]:
     if args.expected_err and args.quality:
         print(
             "Bad arguments:\n\t"
-            + "-e argument is confilicting with -q,"
+            + " -e argument is confilicting with -q,"
             + " can not using in the same time"
         )
         exit()
@@ -978,18 +1096,17 @@ if args.command in ["all", "filter"]:
         high_qual = args.quality[0]
         low_qual_cont = args.quality[1] / 100
         filter_type = 2
-        log.write("Filtering by quality score:\targs.quality\n")
+        log.write("Filtering by quality score: {}, content:"
+                  + " {}%".format(args.quality, args.quality[1])
+                  + "\n")
     else:
         filter_type = 1
         if not args.expected_err:
             args.expected_err = 10
-        log.write("Filtering by expected_err:{}".format(args.expected_err) + "\n")
+        log.write("Filtering by expected_err: {}".format(args.expected_err) + "\n")
 
     print("Filtering start: " + time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
 
-    total = 0
-    clean = 0
-    nn = 0
     id = fh.readline().strip()
     if id[0] != "@":
         print("ERROR: {} is not a correct fastq format".format(args.raw))
@@ -1003,29 +1120,48 @@ if args.command in ["all", "filter"]:
 
         if N_count < args.n:
             if filter_type == 1:
+                if args.trim == True:
+                    (good_seq, good_qual) = exp_e_trim(seq, qual, args.expected_err)
+                    out.write(id + "\n" + good_seq + "\n" + "+\n" + good_qual + "\n")
+                    trimed_base += len(good_seq)
+                    clean += 1
+                else:
 
-                if exp_e(qual) <= args.expected_err:
-                    out.write(id + "\n" + seq + "\n" + "+\n" + qual + "\n")
-                    clean += 1
-                else:
-                    err.write(id + "\n" + seq + "\n" + "+\n" + qual + "\n")
+                    if exp_e(qual) <= args.expected_err:
+                        out.write(id + "\n" + seq + "\n" + "+\n" + qual + "\n")
+                        clean += 1
+                    else:
+                        err.write(id + "\n" + seq + "\n" + "+\n" + qual + "\n")
             else:
-                if lowquality_rate(qual, high_qual) > low_qual_cont:
-                    out.write(id + "\n" + seq + "\n" + "+\n" + qual + "\n")
+                # filter_type == 2
+                if args.trim == True:
+                    (good_seq, good_qual) = lowquality_rate_trim(seq, qual,
+                                                                 high_qual, low_qual_cont)
+                    out.write(id + "\n" + good_seq + "\n" + "+\n" + good_qual + "\n")
+                    trimed_base += len(good_seq)
                     clean += 1
                 else:
-                    err.write(id + "\n" + seq + "\n" + "+\n" + qual + "\n")
+                    if lowquality_rate(qual, high_qual) > low_qual_cont:
+                        out.write(id + "\n" + seq + "\n" + "+\n" + qual + "\n")
+                        clean += 1
+                    else:
+                        err.write(id + "\n" + seq + "\n" + "+\n" + qual + "\n")
         else:
             nn += 1
 
         id = fh.readline().strip()
 
     log.write("total reads:\t{}".format(total) + "\n")
+    log.write("clean reads:\t{}".format(clean) + "\n")
     log.write("containing N reads:\t{}".format(nn) + "\n")
-    log.write("clean reads:\t{}".format(clean))
+    if args.trim == True:
+        average_trimed = trimed_base / clean
+        log.write("clean base:\t{}".format(trimed_base) + "\n")
+        log.write("average of trimed read:\t{0:.2f}".format(average_trimed))
+    else:
+        err.close()
 
     fh.close()
-    err.close()
     log.close()
     out.close()
 
@@ -1050,20 +1186,15 @@ if args.command in ["all", "assign"]:
     if os.path.exists(assigned_outdir) == False:
         os.mkdir(assigned_outdir)
 
-    # check primer list number
-    less_cmd = "less -S " + args.primer + "|wc -l"
-    priwc = subprocess.check_output(less_cmd, shell=True)
-    primer_lines = priwc.decode("utf-8")
-    if int(primer_lines) % 2 != 0:
-        print("the primer file need to have each forward and reverse primer")
-        exit()
-
     pris = {}
     indp = {}
     FH = {}
+    barcodes = []
 
     with open(args.primer, "r") as p:
+        primer_lines = 0
         for i in p.readlines():
+            primer_lines += 1
             i = i.strip()
             arr = i.split()
             if len(arr) != 2:
@@ -1085,15 +1216,36 @@ if args.command in ["all", "assign"]:
             if "For" in sam:
                 plenf = len(ipr)
                 primerF = ipr[indexlen:]
+                # save barcodes in a array, analyze later
+                barcodes.append(ipr[0:indexlen])
 
             if "Rev" in sam:
                 plenr = len(ipr)
                 primerR = ipr[indexlen:]
+    # check primer lines
+    if primer_lines % 2 != 0:
+        print("primer lines ({}) is not even number".format(primer_lines))
+        print("the primer file need to have each forward and reverse primer")
+        exit()
+
+    # analysis barcodes and demultiplex argument(mismatch)
+    (min_dis, max_dis) = dis_barcode(barcodes)
+    print("min distance among barcodes is {}".format(min_dis))
+    print("max distance among barcodes is {}".format(max_dis))
+    if args.tag_mismatch and args.tag_mismatch > (min_dis - 1):
+        print("mismatch you set is too large to demultiplex, it must be smaller"
+             + " than {},".format(min_dis) + " because min distance among barcodes"
+             + " is {}".format(min_dis))
+        exit()
+    # ini dict of count_total and count_assigned for statistic.
+    count_assigned = {}
+    for fh in FH.values():
+        count_assigned[fh] = 0
+
 
     neg_priF = comp_rev(primerF)
     neg_priR = comp_rev(primerR)
-
-    assigned_list = args.outpre + "_assign.list"
+    assigned_list =  args.outpre + "_assign.list"
 
     with open(assigned_list, "w") as ls:
         sorted_sample = sorted(pris.keys())
@@ -1110,7 +1262,7 @@ if args.command in ["all", "assign"]:
                 + ".fastq"
                 + "\n"
             )
-
+    # open all assigned files
     filehandle = {}
     for sam in indp.keys():
         filehandle[sam] = open(assigned_outdir + "/" + sam + ".fastq", "w")
@@ -1118,8 +1270,6 @@ if args.command in ["all", "assign"]:
     seqnum = 0
     err = 0
     assigned = 0
-    count_assigned = {}
-    count_total = {}
 
     with open(args.fq, "r") as fh:
         head = fh.readline().strip()
@@ -1131,64 +1281,56 @@ if args.command in ["all", "assign"]:
             seqnum += 1
             headf = seq[0:plenf]
             headr = seq[0:plenr]
-            if "N" in seq:
-                continue
-            if headf in FH:
-                tmp = seq[plenf:]
-                if FH[headf] in count_assigned:
-                    count_total[FH[headf]] += 1
-                else:
-                    count_total[FH[headf]] = 1
-                if (primerF not in tmp
-                    and primerR not in tmp
-                    and neg_priF not in tmp
-                    and neg_priR not in tmp):
-                    filehandle[FH[headf]].write(
-                        "@" + FH[headf] + "_" + str(seqnum) + "\n" + seq + "\n"
-                    )
-                    filehandle[FH[headf]].write("+\n" + qual + "\n")
-                    assigned += 1
-                    if FH[headf] in count_assigned:
-                        count_assigned[FH[headf]] += 1
-                    else:
-                        count_assigned[FH[headf]] = 1
-                else:
-                    err += 1
-                    ErrFile.write(">" + str(seqnum) + "\n" + seq + "\n")
-            elif headr in FH:
-                tmp = seq[plenr:]
-                if FH[headr] in count_assigned:
-                    count_total[FH[headr]] += 1
-                else:
-                    count_total[FH[headr]] = 1
-                if (primerF not in tmp
-                    and primerR not in tmp
-                    and neg_priF not in tmp
-                    and neg_priR not in tmp):
-                    filehandle[FH[headr]].write(
-                        "@" + FH[headr] + "_" + str(seqnum) + "\n" + seq + "\n"
-                    )
-                    filehandle[FH[headr]].write("+\n" + qual + "\n")
-                    assigned += 1
-                    if FH[headr] in count_assigned:
-                        count_assigned[FH[headr]] += 1
-                    else:
-                        count_assigned[FH[headr]] = 1
-                else:
-                    err += 1
-                    ErrFile.write(">" + str(seqnum) + "\n" + seq + "\n")
-            else:
-                ErrFile.write(">" + str(seqnum) + "\n" + seq + "\n")
+            # cut head (max of for and rev) to make a tmp sequence
+            len_head_cut = max(plenf, plenr)
+            tmp = seq[len_head_cut:]
+            # if primer in the wrong position, remove this reads.
+            if (primerF in tmp or primerR in tmp
+                or neg_priF in tmp or neg_priR in tmp):
+                ErrFile.write(">" + str(seqnum) + "_priErr\n" + seq + "\n")
                 err += 1
 
+            elif headf in FH.keys():
+                count_assigned[FH[headf]] += 1
+                filehandle[FH[headf]].write(
+                    "@" + FH[headf] + "_" + str(seqnum) + "\n" + seq + "\n"
+                )
+                filehandle[FH[headf]].write("+\n" + qual + "\n")
+                assigned += 1
+
+            elif headr in FH.keys():
+                count_assigned[FH[headr]] += 1
+                filehandle[FH[headr]].write(
+                    "@" + FH[headr] + "_" + str(seqnum) + "\n" + seq + "\n"
+                )
+                filehandle[FH[headr]].write("+\n" + qual + "\n")
+                assigned += 1
+            else:
+                # much more likely to be a mismatch
+                potential_target = detect_mis(headf, headr, FH)
+                if potential_target:
+                    filehandle[potential_target].write(
+                        "@" + potential_target + "_" + str(seqnum) + "\n" + seq + "\n"
+                    )
+                    assigned += 1
+                    count_assigned[potential_target] += 1
+                else:
+                    err += 1
+                    ErrFile.write(">" + str(seqnum) + "\n" + seq + "\n")
+
     ErrFile.close()
+    # close all assigned files
+    for fh in filehandle.values():
+        fh.close()
+
+    # report assignment information
     with open(args.outpre + ".assign.log", "w") as log:
         log.write("total reads:\t{}\n".format(seqnum))
         log.write("err reads:\t{}\n".format(err))
         log.write("assigned:\t{}\n".format(assigned))
         for i in sorted(count_assigned.keys()):
             log.write(
-                i + "\t" + str(count_total[i]) + "\t" + str(count_assigned[i]) + "\n"
+                i + "\t" + str(count_assigned[i]) + "\n"
             )
 
     print("Assigning done: " + time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
@@ -1297,19 +1439,19 @@ if args.command in ["all", "assembly"]:
 
             if args.mode == 1 and args.cluster_identity == 1:
                 table_f = mode_identical(seq_checked_for)
-                seq_checked_rev = complement_and_reverse(seq_checked_rev)
+                seq_checked_rev = comp_rev_list(seq_checked_rev)
                 table_r = mode_identical(seq_checked_rev)
 
             elif args.mode == 1 and args.cluster_identity < 1:
                 table_f = mode_vsearch(seq_checked_for)
-                seq_checked_rev = complement_and_reverse(seq_checked_rev)
+                seq_checked_rev = comp_rev_list(seq_checked_rev)
                 table_r = mode_vsearch(seq_checked_rev)
 
             else:
                 # mod == 2
                 # in mod2, though there is only one sequence, also using a array to store.
                 table_f = mode_consensus(seq_checked_for)
-                seq_checked_rev = complement_and_reverse(seq_checked_rev)
+                seq_checked_rev = comp_rev_list(seq_checked_rev)
                 table_r = mode_consensus(seq_checked_rev)
 
             # sort array by it's abundance#
