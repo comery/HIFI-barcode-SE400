@@ -1075,6 +1075,9 @@ if args.command in ["all", "filter"]:
     clean = 0
     nn = 0
     if args.trim == True:
+        read_lens = []
+        min_read_len = 0
+        max_read_len = 0
         trimed_base = 0
     else:
         err = open(args.outpre + "_filter_lowqual.fastq", "w")
@@ -1123,7 +1126,7 @@ if args.command in ["all", "filter"]:
                 if args.trim == True:
                     (good_seq, good_qual) = exp_e_trim(seq, qual, args.expected_err)
                     out.write(id + "\n" + good_seq + "\n" + "+\n" + good_qual + "\n")
-                    trimed_base += len(good_seq)
+                    read_lens.append(len(good_seq))
                     clean += 1
                 else:
 
@@ -1138,7 +1141,7 @@ if args.command in ["all", "filter"]:
                     (good_seq, good_qual) = lowquality_rate_trim(seq, qual,
                                                                  high_qual, low_qual_cont)
                     out.write(id + "\n" + good_seq + "\n" + "+\n" + good_qual + "\n")
-                    trimed_base += len(good_seq)
+                    read_lens.append(len(good_seq))
                     clean += 1
                 else:
                     if lowquality_rate(qual, high_qual) > low_qual_cont:
@@ -1155,8 +1158,14 @@ if args.command in ["all", "filter"]:
     log.write("clean reads:\t{}".format(clean) + "\n")
     log.write("containing N reads:\t{}".format(nn) + "\n")
     if args.trim == True:
+        for le in read_lens:
+            trimed_base += le
         average_trimed = trimed_base / clean
+        min_read_len = min(read_lens)
+        max_read_len = max(read_lens)
         log.write("clean base:\t{}".format(trimed_base) + "\n")
+        log.write("min read length:\t{}".format(min_read_len) + "\n")
+        log.write("max read length:\t{}".format(max_read_len) + "\n")
         log.write("average of trimed read:\t{0:.2f}".format(average_trimed))
     else:
         err.close()
