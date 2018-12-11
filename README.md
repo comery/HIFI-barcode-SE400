@@ -3,16 +3,16 @@ The BGISEQ-500 platform has launched a new test sequencing kits capable of singl
 
 
 ### Manual
-[manual book](https://github.com/comery/HIFI-barcode-SE400/raw/master/HIFI-SE_manual.pdf)
+[manual book](https://github.com/comery/HIFI-barcode-SE400/raw/master/HIFI-SE_manual_v1.0.2.pdf)
 
 ### Versions
 
 #### version 1.0.2 Python
 - v1.0.2 2018-12-10  Add "-trim" function in filter;
-        accept mistmatched in tag or primer sequence,
-        when demultiplexing; accept uneven reads to
-        assembly; add "-ds" to drop short reads before
-        assembly.
+	accept mismatches in tag or primer sequence,
+   	when demultiplexing; accept uneven reads to
+   	assembly; add "-ds" to drop short reads before
+   	assembly.
 - 1.0.1 2018-12-2  Add "polish" function
 - v1.0.0  
 	HIFI-SE v1.0.0 2018/11/22. Changers form previous version:
@@ -44,7 +44,7 @@ Operating system: HIFI-SE is designed to run on most platforms, including UNIX, 
 
 #### Install
 
-1. I only deploy my latest version on github, so you can clone this repository to your local computer. However, it would not solve package dependencies, thus you need to install biopython and bold_identification before using HIFI-SE software.  
+1. I only deploy my latest version on github, so you can clone this repository to your local computer. However, it would not solve package dependencies, thus you need to install biopython and bold_identification before using HIFI-SE software.<b>(NOTE: pip is a link from pip3)</b>
 
 	```shell
 	git clone https://github.com/comery/HIFI-barcode-SE400.git
@@ -135,7 +135,7 @@ filter arguments:
   -q <INT> <INT>  filter by base quality; for example: '20 5' means
                   dropping read which contains more than 5 percent of
                   quality score < 20 bases.
-  -trim           whether to trim 5' end of read, it adapt to -e mode
+  -trim           whether to trim 5' end of read, it adapts to -e mode
                   or -q mode
   -n <INT>        remove reads containing [INT] Ns, default=1
 ```
