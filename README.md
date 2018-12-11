@@ -3,16 +3,14 @@ The BGISEQ-500 platform has launched a new test sequencing kits capable of singl
 
 
 ### Versions
-#### original Perl version & Python, rough sources
->0.expected_error.pl   
-1.split_extract.pl  
-2.hificonnect.pl
 
->0.expected_error.py  
-1.split_extract.py  
-2.hificonnect.py  
-
-#### version 1.0.0 Python
+#### version 1.0.2 Python
+- v1.0.2 2018-12-10  Add "-trim" function in filter;
+        accept mistmatched in tag or primer sequence,
+        when demultiplexing; accept uneven reads to
+        assembly; add "-ds" to drop short reads before
+        assembly.
+- 1.0.1 2018-12-2  Add "polish" function
 - v1.0.0  
 	HIFI-SE v1.0.0 2018/11/22. Changers form previous version:
 	- Formatted python code writing style as PEP8.
@@ -23,6 +21,14 @@ The BGISEQ-500 platform has launched a new test sequencing kits capable of singl
 - V0.0.1  
 	HIFI-SE v0.0.1 2018/11/03 beat version, establish the framework and archive almost complete functions.
 
+#### original Perl version & Python, rough sources
+>0.expected_error.pl   
+1.split_extract.pl  
+2.hificonnect.pl
+
+>0.expected_error.py  
+1.split_extract.py  
+2.hificonnect.py  
 
 ### Installation
 
@@ -60,7 +66,8 @@ or
 ```
 
 ```text
-usage: HIFI-SE [-h] [-v] {all,filter,assign,assembly,bold_identification} ...
+usage: HIFI-SE [-h] [-v]
+               {all,filter,assign,assembly,polish,bold_identification} ...
 
 Description
 
@@ -70,6 +77,12 @@ Description
 
 Version
 
+    1.0.2 2018-12-10  Add "-trim" function in filter;
+        accept mistmatched in tag or primer sequence,
+        when demultiplexing; accept uneven reads to
+        assembly; add "-ds" to drop short reads before
+        assembly.
+    1.0.1 2018-12-2  Add "polish" function
     1.0.0 2018-11-22 formated as PEP8 style
     0.0.1 2018-11-3
 
@@ -78,12 +91,14 @@ Author
     mengguanliang at genomics.cn, BGI.
 
 positional arguments:
-  {all,filter,assign,assembly,bold_identification}
+  {all,filter,assign,assembly,polish,bold_identification}
     all                 run filter, assign and assembly
     filter              filter raw reads
     assign              assign reads to samples
     assembly            do assembly from input fastq
                         reads, output HIFI barcodes.
+    polish              polish COI barcode assemblies,
+                        output confident barcodes.
     bold_identification
                         do taxa identification
                         on BOLD system,
@@ -91,7 +106,6 @@ positional arguments:
 optional arguments:
   -h, --help            show this help message and exit
   -v, --version         show program's version number and exit
-
 ```
 
 #### run by steps [filter -> assign -> assembly]
@@ -100,7 +114,7 @@ optional arguments:
 
 ```text
 usage: HIFI-SE filter [-h] -outpre <STR> -raw <STR> [-e <INT>]
-                      [-q <INT> <INT>] [-n <INT>]
+                      [-q <INT> <INT>] [-trim] [-n <INT>]
 
 optional arguments:
   -h, --help      show this help message and exit
@@ -118,6 +132,8 @@ filter arguments:
   -q <INT> <INT>  filter by base quality; for example: '20 5' means
                   dropping read which contains more than 5 percent of
                   quality score < 20 bases.
+  -trim           whether to trim 5' end of read, it adapt to -e mode
+                  or -q mode
   -n <INT>        remove reads containing [INT] Ns, default=1
 ```
 
@@ -125,7 +141,7 @@ filter arguments:
 
 ```text
 usage: HIFI-SE assign [-h] -outpre <STR> -index INT -fq <STR> -primer <STR>
-                      [-outdir <STR>]
+                      [-outdir <STR>] [-tmis <INT>] [-pmis <INT>]
 
 optional arguments:
   -h, --help     show this help message and exit
@@ -146,6 +162,8 @@ assign arguments:
                  ...
                  this format is necessary!
   -outdir <STR>  output directory for assignment,default="assigned"
+  -tmis <INT>    mismatch number in tag when demultiplexing, default=0
+  -pmis <INT>    mismatch number in primer when demultiplexing, default=1
 ```
 - ```python3 HIFI-SE.py assembly```
 
@@ -153,7 +171,7 @@ assign arguments:
 usage: HIFI-SE assembly [-h] -outpre <STR> -index INT -list FILE
                         [-vsearch <STR>] [-threads <INT>] [-cid FLOAT]
                         [-min INT] [-max INT] [-oid FLOAT] [-tp INT] [-ab INT]
-                        [-seqs_lim INT] [-len INT] [-mode INT] [-rc] [-cc]
+                        [-seqs_lim INT] [-len INT] [-ds] [-mode INT] [-rc]
                         [-codon INT] [-frame INT]
 
 optional arguments:
@@ -165,7 +183,7 @@ common arguments:
 index arguments:
   -index INT      the length of tag sequence in the ends of primers
 
-when only run assembly arguments:
+only run assembly arguments(not all):
   -list FILE      input file, fastq file list. [required]
 
 software path:
@@ -182,6 +200,7 @@ assembly arguments:
   -seqs_lim INT   reads number limitation. by default,
                   no limitation for input reads
   -len INT        standard read length, default=400
+  -ds             drop short reads away before assembly
   -mode INT       1 or 2; modle 1 is to cluster and keep
                   most [-tp] abundance clusters, or clusters
                   abundance more than [-ab], and then make a
@@ -190,8 +209,8 @@ assembly arguments:
                   sequence without clustering. default=1
   -rc             whether to check amino acid translation
                   for reads, default not
-  -cc             whether to check final COI contig's
-                  amino acid translation, default not
+
+translation arguments(when set -rc or -cc):
   -codon INT      codon usage table used to checktranslation, default=5
   -frame INT      start codon shift for amino acidtranslation, default=1
 ```
@@ -208,7 +227,7 @@ All related files could be found from here. The important files for tutorial are
 Example:
 
 ```shell
-python3 HIFI-SE.py all -outpre hifi -raw test.raw.fastq -index 5 -primer index_primer.list -mode 1 -cid 0.98 -oid 0.95 -seqs_lim 50000 -threads 4 -tp 2
+python3 HIFI-SE.py all -outpre hifi -trim -e 5 -raw test.raw.fastq -index 5 -primer index_primer.list -mode 1 -cid 0.98 -oid 0.95 -seqs_lim 50000 -threads 4 -tp 2 
 ```
 
 ### Citation

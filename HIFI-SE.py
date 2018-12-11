@@ -258,6 +258,13 @@ assembly_group.add_argument(
 )
 
 assembly_group.add_argument(
+    "-ds",
+    dest="drop_short_read",
+    action="store_true",
+    help="drop short reads away before assembly",
+)
+
+assembly_group.add_argument(
     "-mode",
     metavar="INT",
     type=int,
@@ -377,9 +384,10 @@ Description
 
 Version
 
-    1.1.0 2018-12-10  Add "-trim" function in filter;
+    1.0.2 2018-12-10  Add "-trim" function in filter;
         accept mistmatched in tag or primer sequence,
         when demultiplexing; accept uneven reads to
+        assembly; add "-ds" to drop short reads before
         assembly.
     1.0.1 2018-12-2  Add "polish" function
     1.0.0 2018-11-22 formated as PEP8 style
@@ -399,7 +407,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument(
     "-v", "--version",
     action="version",
-    version="%(prog)s 1.1.0"
+    version="%(prog)s 1.0.2"
 )
 
 subparsers = parser.add_subparsers(dest="command")
@@ -637,7 +645,7 @@ def complementation(sequence):
     # make a sequence complement #
     # replace function of string is too low!
     sequence = sequence.upper() ## [a bug fixed], reported by Wu Ping 20181129
-    transtable = str.maketrans('ATCG', 'TAGC')
+    transtable = str.maketrans('ATCG-', 'TAGC-')
     sequence = sequence.translate(transtable)
     return sequence
 
@@ -665,7 +673,6 @@ def detect_mis(f, r, dict):
                             primer_mis += 1
                 if (tag_mis <= args.tag_mismatch
                     and primer_mis <= args.primer_mismatch):
-                    print(tag_mis, primer_mis)
                     goal = dict[s2]
                     break
                 else:
@@ -699,6 +706,7 @@ def comp_rev_list(reads_list):
     new_reads_list = []
     for read in reads_list:
         read = comp_rev(read)
+        new_reads_list.append(read)
 
     return new_reads_list
 
@@ -737,11 +745,10 @@ def read_fastq(fastq_file, ori):
 
     reads_count = 0
     good = 0
-    bad_length = 0
+    short_reads = 0
     seq_checked = []
     # fastq_err = "It's not a correct fastq format.\n"
     head = fh_file.readline().strip()
-    # bug! id -> head
     while head:
         reads_count += 1
         sequence = fh_file.readline().strip()
@@ -749,8 +756,8 @@ def read_fastq(fastq_file, ori):
         qual = fh_file.readline().strip()
         head = fh_file.readline().strip()
         seq_len = len(sequence)
-        if seq_len != args.standard_length:
-            bad_length += 1
+        if args.drop_short_read and seq_len < args.standard_length:
+            short_reads += 1
             continue
 
         # check translation
@@ -775,7 +782,7 @@ def read_fastq(fastq_file, ori):
                     tmp = tmp[0 : -(seq_len % 3)]
                 # reverse #
                 tmp = tmp[::-1]
-                if translate_dnaseq(tmp, args.codon.table):
+                if translate_dnaseq(tmp, args.codon_table):
                     seq_checked.append(sequence)
                     good += 1
         else:
@@ -785,20 +792,12 @@ def read_fastq(fastq_file, ori):
             break
 
     fh_file.close()
+    fh_log.write(ori + ": total reads input: {};".format(reads_count))
+    if args.drop_short_read == True:
+        fh_log.write(" short reads: {};".format(short_reads))
     if args.reads_check:
-        fh_log.write(
-            ori
-            + ": total reads input:"
-            + str(reads_count)
-            + "\tcheck codon good:"
-            + str(good)
-            + "\t"
-            + "with wrong length reads:"
-            + str(bad_length)
-            + "\n"
-        )
-    else:
-        fh_log.write(ori + ": total reads input:" + str(reads_count) + "\n")
+        fh_log.write(" check codon good: {}".format(good))
+    fh_log.write("\n")
 
     return seq_checked
 
@@ -815,22 +814,27 @@ def coi_check(contig, codon):
     else:
         return False
 
+def max_length(seqs):
+    lens_seqs = [len(n) for n in seqs]
+    longest = max(lens_seqs)
+    return longest
 
 def depth_table(seqs):
     # ---------------depth_table----------#
-    llen = len(seqs[0])
-    m = 0
+    longest = max_length(seqs)
     consensus = ""
-    while m < llen:
+    for m in range(longest):
         depth = {}
         for align in seqs:
+            if (m + 1) > len(align):
+                continue # when sequence is too short, it will be out of index.
             if align[m] in depth.keys():
                 depth[align[m]] += 1
             else:
                 depth[align[m]] = 1
 
-        if "N" in depth.keys():
-            del depth["N"]
+        if "-" in depth.keys():
+            del depth["-"]
 
         # sorted_base = sorted(depth.iteritems(), key=lambda x: x[1], reverse=True)#
         # sorted_base = sorted(depth, key=depth.__getitem__,reverse=True)
@@ -841,7 +845,6 @@ def depth_table(seqs):
         consensus += sorted_base[0]
 
         depth = {}
-        m += 1
     return consensus
 
 
@@ -935,8 +938,24 @@ def merge_matrix(matrix1, matrix2):
 
     return matrix1
 
+def repair_short_reads(reads, ori):
+    repaired = []
+    lmax = max_length(reads)
+    for i in reads:
+        if len(i) < lmax:
+            if ori == 'f':
+                # completion with - in the head for end reads
+                a = i + "-" * (lmax - len(i))
+            else:
+                # ori is 'r', completion with - in the head for reverse reads
+                a = "-" * (lmax - len(i)) + i
+        else:
+            a = i
+        repaired.append(a)
+    return repaired
 
-def mode_vsearch(seqs):
+
+def mode_vsearch(seqs, ori):
     """
     in mode 1, but clustering identity is not 100%,
     it is hard to archieve by perl, so I use VSEARCH to make it.
@@ -969,8 +988,10 @@ def mode_vsearch(seqs):
     )
     # print("now run: " + vsearch_cmd)
     subprocess.call(vsearch_cmd, shell=True)
-
+    # to store clusters, clusters[represent ID] = [clustered IDs]
     clusters = {}
+    # to store each cluster's abundance, for sorting clusters
+    # e.g. count[represent ID] = 100
     count = {}
 
     # open temp.uc and statistic each cluster's abundance.
@@ -1020,11 +1041,13 @@ def mode_vsearch(seqs):
             s = int(s)
             k_seqs.append(seqs[s])
             # split reads into bases-arrays#
-            bases = list(seqs[s])
-            matrix.append(bases)
-
+        # if your reads are trimed, so they are uneven, this is to
+        # normalize length
+        k_seqs = repair_short_reads(k_seqs, ori)
         con = depth_table(k_seqs)
-        """
+        for s in k_seqs:
+            matrix.append(list(s))
+        '''
         #!!!---BUG---report
         # if make a consensus sequence for each cluster,
         # you may face this problem: different clusters have same
@@ -1033,7 +1056,7 @@ def mode_vsearch(seqs):
         #
         # Take it easy! I have a solution!
         # why not to merge two pairs which have same keys.
-        """
+        '''
         if con in cluster_tables.keys():
             # merge this matric and previous same matrix#
             flash = merge_matrix(cluster_tables[con], matrix)
@@ -1046,12 +1069,10 @@ def mode_vsearch(seqs):
 
 def mode_consensus(seqs):
     # In mode 2, this is only table.#
-
     matrix = []
     cons_table = {}
-    for i in seqs:
-        a = list(i)
-        matrix.append(a)
+    for s in seqs:
+        matrix.append(list(s))
 
     consensus = depth_table(seqs)
     cons_table[consensus] = matrix
@@ -1303,16 +1324,14 @@ if args.command in ["all", "assign"]:
                 count_assigned[FH[headf]] += 1
                 filehandle[FH[headf]].write(
                     "@" + FH[headf] + "_" + str(seqnum) + "\n" + seq + "\n"
-                )
-                filehandle[FH[headf]].write("+\n" + qual + "\n")
+                    + "+\n" + qual + "\n")
                 assigned += 1
 
             elif headr in FH.keys():
                 count_assigned[FH[headr]] += 1
                 filehandle[FH[headr]].write(
                     "@" + FH[headr] + "_" + str(seqnum) + "\n" + seq + "\n"
-                )
-                filehandle[FH[headr]].write("+\n" + qual + "\n")
+                    + "+\n" + qual + "\n")
                 assigned += 1
             else:
                 # much more likely to be a mismatch
@@ -1320,7 +1339,7 @@ if args.command in ["all", "assign"]:
                 if potential_target:
                     filehandle[potential_target].write(
                         "@" + potential_target + "_" + str(seqnum) + "\n" + seq + "\n"
-                    )
+                        + "+\n" + qual + "\n")
                     assigned += 1
                     count_assigned[potential_target] += 1
                 else:
@@ -1422,23 +1441,28 @@ if args.command in ["all", "assembly"]:
         success_or_not = False
         line = line.rstrip()
         tmp_list = line.split()
-        if len(tmp_list) is not 2:
+        if len(tmp_list) != 2:
             print(list_format_info)
             exit(0)
         else:
             forward = tmp_list[0]
             reverse = tmp_list[1]
+
             for_name = os.path.basename(forward).split(".")[0]
             rev_name = os.path.basename(reverse).split(".")[0]
             outname = for_name + "_" + rev_name
             short_outname = outname[-3:]
             fh_log.write("//processing " + outname + "\n")
+            # if file is empty, continue
+            if os.path.getsize(forward) == 0 or os.path.getsize(reverse) == 0:
+                fh_log.write("! Eithor Forward or Reverse file is empty!" + "\n")
+                continue
 
             seq_checked_for = read_fastq(forward, "f")
             seq_checked_rev = read_fastq(reverse, "r")
 
             if len(seq_checked_for) == 0 or len(seq_checked_rev) == 0:
-                fh_log.write("Eithor Forward or Reverse file is empty!" + "\n")
+                fh_log.write("! Eithor Forward or Reverse reads is NONE!" + "\n")
                 run_again.append(short_outname)
                 run_again_file += line + "\n"
                 continue
@@ -1452,14 +1476,17 @@ if args.command in ["all", "assembly"]:
                 table_r = mode_identical(seq_checked_rev)
 
             elif args.mode == 1 and args.cluster_identity < 1:
-                table_f = mode_vsearch(seq_checked_for)
+                table_f = mode_vsearch(seq_checked_for, 'f')
                 seq_checked_rev = comp_rev_list(seq_checked_rev)
-                table_r = mode_vsearch(seq_checked_rev)
+                table_r = mode_vsearch(seq_checked_rev, 'r')
 
             else:
                 # mod == 2
                 # in mod2, though there is only one sequence, also using a array to store.
+
+                seq_checked_for = repair_short_reads(seq_checked_for, 'f')
                 table_f = mode_consensus(seq_checked_for)
+                seq_checked_rev = repair_short_reads(seq_checked_rev, 'r')
                 seq_checked_rev = comp_rev_list(seq_checked_rev)
                 table_r = mode_consensus(seq_checked_rev)
 
