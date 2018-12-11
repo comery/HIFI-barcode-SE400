@@ -112,7 +112,7 @@ filter_group.add_argument(
     "-trim",
     dest="trim",
     action="store_true",
-    help="whether to trim 5' end of read, it adapt to -e mode\n"
+    help="whether to trim 5' end of read, it adapts to -e mode\n"
     + "or -q mode",
 )
 filter_group.add_argument(
@@ -385,7 +385,7 @@ Description
 Version
 
     1.0.2 2018-12-10  Add "-trim" function in filter;
-        accept mistmatched in tag or primer sequence,
+        accept mismatches in tag or primer sequence,
         when demultiplexing; accept uneven reads to
         assembly; add "-ds" to drop short reads before
         assembly.
