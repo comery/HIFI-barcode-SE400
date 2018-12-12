@@ -1844,7 +1844,7 @@ if args.command == "polish":
                 continue
 
             elif args.coi_check and coi_check(str(record.seq), args.codon_table) == False:
-                print(sample_tag + "translation failed")
+                print(str(sample_tag) + " translation failed")
                 continue
 
             else:
