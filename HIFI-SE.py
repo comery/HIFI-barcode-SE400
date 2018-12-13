@@ -89,6 +89,16 @@ filter_group.add_argument(
 )
 
 filter_group.add_argument(
+    "-phred",
+    metavar="<INT>",
+    type=int,
+    dest="phred",
+    choices=[33, 64],
+    default=33,
+    help="Phred score system, 33 or 64, default=33"
+)
+
+filter_group.add_argument(
     "-e",
     metavar="<INT>",
     type=int,
@@ -380,9 +390,10 @@ Description
 
     An automatic pipeline for HIFI-SE400 project, including filtering
     raw reads, assigning reads to samples, assembly HIFI barcodes
-    (COI sequences).
+    (COI sequences), polished assemblies, and do tax identification.
+    See more: https://github.com/comery/HIFI-barcode-SE400
 
-Version
+Versions
 
     1.0.2 2018-12-10  Add "-trim" function in filter;
         accept mismatches in tag or primer sequence,
@@ -393,7 +404,8 @@ Version
     1.0.0 2018-11-22 formated as PEP8 style
     0.0.1 2018-11-3
 
-Author
+Authors
+
     yangchentao at genomics.cn, BGI.
     mengguanliang at genomics.cn, BGI.
 """
@@ -530,7 +542,8 @@ def files_exist_0_or_1(filelist):
     else:
         return 1
 
-
+def print_time(str):
+    print(str + " " + time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
 # ----------------------------------------------------------------
 ## file existing check
 errors_found = 0
@@ -563,22 +576,42 @@ if hasattr(args, "outpre") and args.outpre.endswith("/"):
     print("outpre is in bad format! no \"/\"")
     exit()
 
+def CheckandOpen_outHandle(file):
+    if os.path.exists(file):
+        print("WARRNING: " + file + " exists! now overwriting ...")
+    else:
+        print("[INFO]: " + "open file " + file + "...")
+    out = open(file, 'w')
+    return out
+
+
 # -----------------------functions for filtering------------------#
-def exp_e(q):
+
+def parse_se_fastq(fq_fh):
+    while True:
+        name = fq_fh.readline().strip()
+        if len(name) == 0:
+            break
+        read = fq_fh.readline().strip()
+        nothing = fq_fh.readline().strip()
+        qual = fq_fh.readline().strip()
+        qlist = list(qual)
+        yield name, read, qlist
+
+def exp_e(qlist, phred):
     '''
     expected error number(E*) = sum(P), where P is
     the probability that the base call is incorrect.
     '''
     exp = 0
-    tmp = list(q)
-    ascill = [ord(n) - 33 for n in tmp]
+    ascill = [ord(n) - phred for n in qlist]
 
     for i in ascill:
         exp += 10 ** (-i / 10)
 
     return exp
 
-def exp_e_trim(seq, qual, E):
+def exp_e_trim(seq, qual, E, phred):
     '''
     expected error number(E*) = sum(P), where P is
     the probability that the base call is incorrect.
@@ -593,29 +626,28 @@ def exp_e_trim(seq, qual, E):
         if exp < E:
             good_seq += seq[i]
             good_qual += qual[i]
-            ascill_i = ord(qual[i]) - 33
+            ascill_i = ord(qual[i]) - phred
             exp += 10 ** (-ascill_i / 10)
         else:
             return (good_seq, good_qual)
             break
     return (good_seq, good_qual)
 
-def lowquality_rate(qual_str, cut_off):
+def lowquality_rate(qlist, cut_off, phred):
     '''
     calculate the rate of low quality base in read.
     '''
     low_base = 0
-    tmp = list(qual_str)
-    ascill = [ord(n) - 33 for n in tmp]
+    ascill = [ord(n) - phred for n in qlist]
 
     for i in ascill:
         if i < cut_off:
             low_base += 1
 
-    low_rate = low_base / len(qual_str)
+    low_rate = low_base / len(qlist)
     return low_rate
 
-def lowquality_rate_trim(seq, qual, quality_demand, low_rate):
+def lowquality_rate_trim(seq, qual, quality_demand, low_rate, phred):
     '''
     calculate the rate of low quality base in read.
     '''
@@ -624,7 +656,7 @@ def lowquality_rate_trim(seq, qual, quality_demand, low_rate):
     good_qual = ''
     llen = len(seq)
     for i in range(llen):
-        ascill_i = ord(qual[i]) - 33
+        ascill_i = ord(qual[i]) - phred
         if low_base < llen * low_rate:
             good_seq += seq[i]
             good_qual += qual[i]
@@ -677,7 +709,6 @@ def detect_mis(f, r, dict):
                     break
                 else:
                     goal = ''
-    
     if len(goal) > 0:
         return goal
     else:
@@ -748,13 +779,9 @@ def read_fastq(fastq_file, ori):
     short_reads = 0
     seq_checked = []
     # fastq_err = "It's not a correct fastq format.\n"
-    head = fh_file.readline().strip()
-    while head:
-        reads_count += 1
-        sequence = fh_file.readline().strip()
-        fh_file.readline()
-        qual = fh_file.readline().strip()
-        head = fh_file.readline().strip()
+    for i in parse_se_fastq(fh_file):
+        head, sequence, qual = i
+
         seq_len = len(sequence)
         if args.drop_short_read and seq_len < args.standard_length:
             short_reads += 1
@@ -925,7 +952,7 @@ def mode_identical(seqs):
     else:
         # all reads are unique, so that's wrong! #
         most_abuns[sorted_seq[0]] = abu[sorted_seq[0]]
-        print("all reads in file are uniqe! clustering is meaningless!\n")
+        print("Alert: all reads in file are uniqe! clustering is meaningless!\n")
     abu = {}
 
     return most_abuns
@@ -1087,10 +1114,14 @@ def addtwodimdict(thedict, key_a, key_b, val):
 # ------------------------filter process--------------------------#
 if args.command in ["all", "filter"]:
 
+    print_time("[INFO]: Filtering start:")
+
     filtered_outfile = args.outpre + "_filter_highqual.fastq"
-    if os.path.exists(filtered_outfile):
-        print("WARRNING: " + filtered_outfile + " exists! now overwriting")
-    out = open(filtered_outfile, "w")
+    out = CheckandOpen_outHandle(filtered_outfile)
+
+    logfile = args.outpre + "_filter_log.txt"
+    log = CheckandOpen_outHandle(logfile)
+
     # ini state
     total = 0
     clean = 0
@@ -1102,16 +1133,10 @@ if args.command in ["all", "filter"]:
         trimed_base = 0
     else:
         err = open(args.outpre + "_filter_lowqual.fastq", "w")
-    log = open(args.outpre + "_filter_log.txt", "w")
-
-    if args.raw.endswith(".gz"):
-        fh = gzip.open(args.raw, "rt")
-    else:
-        fh = open(args.raw, "r")
 
     if args.expected_err and args.quality:
         print(
-            "Bad arguments:\n\t"
+            "[Bad Arguments]:"
             + " -e argument is confilicting with -q,"
             + " can not using in the same time"
         )
@@ -1120,60 +1145,57 @@ if args.command in ["all", "filter"]:
         high_qual = args.quality[0]
         low_qual_cont = args.quality[1] / 100
         filter_type = 2
-        log.write("Filtering by quality score: {}, content:"
-                  + " {}%".format(args.quality, args.quality[1])
-                  + "\n")
+        log.write("Filtering by quality score: {}, content: {}%".format(
+            args.quality, args.quality[1])
+            + "\n")
     else:
         filter_type = 1
         if not args.expected_err:
             args.expected_err = 10
         log.write("Filtering by expected_err: {}".format(args.expected_err) + "\n")
 
-    print("Filtering start: " + time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
+    if args.raw.endswith(".gz"):
+        fh = gzip.open(args.raw, "rt")
+    else:
+        fh = open(args.raw, "r")
 
-    id = fh.readline().strip()
-    if id[0] != "@":
-        print("ERROR: {} is not a correct fastq format".format(args.raw))
-        exit()
-    while id:
+    for i in parse_se_fastq(fh):
+        head, seq, qual = i
+        qual_str = "".join(qual)
         total += 1
-        seq = fh.readline().strip()
-        fh.readline().strip()
-        qual = fh.readline().strip()
         N_count = seq.count("N")
 
         if N_count < args.n:
             if filter_type == 1:
                 if args.trim == True:
-                    (good_seq, good_qual) = exp_e_trim(seq, qual, args.expected_err)
-                    out.write(id + "\n" + good_seq + "\n" + "+\n" + good_qual + "\n")
+                    (good_seq, good_qual) = exp_e_trim(seq, qual,
+                                                       args.expected_err, args.phred)
+                    out.write(head + "\n" + good_seq + "\n" + "+\n" + good_qual + "\n")
                     read_lens.append(len(good_seq))
                     clean += 1
+                elif exp_e(qual, args.phred) <= args.expected_err:
+                    out.write(head + "\n" + seq + "\n" + "+\n" + qual_str + "\n")
+                    clean += 1
                 else:
-
-                    if exp_e(qual) <= args.expected_err:
-                        out.write(id + "\n" + seq + "\n" + "+\n" + qual + "\n")
-                        clean += 1
-                    else:
-                        err.write(id + "\n" + seq + "\n" + "+\n" + qual + "\n")
+                    err.write(head + "\n" + seq + "\n" + "+\n" + qual_str + "\n")
             else:
                 # filter_type == 2
                 if args.trim == True:
                     (good_seq, good_qual) = lowquality_rate_trim(seq, qual,
-                                                                 high_qual, low_qual_cont)
-                    out.write(id + "\n" + good_seq + "\n" + "+\n" + good_qual + "\n")
+                                                                 high_qual,
+                                                                 low_qual_cont,
+                                                                args.phred)
+                    out.write(head + "\n" + good_seq + "\n" + "+\n" + good_qual + "\n")
                     read_lens.append(len(good_seq))
                     clean += 1
+                elif lowquality_rate(qual, high_qual, args.phred) > low_qual_cont:
+                    out.write(head + "\n" + seq + "\n" + "+\n" + qual_str + "\n")
+                    clean += 1
                 else:
-                    if lowquality_rate(qual, high_qual) > low_qual_cont:
-                        out.write(id + "\n" + seq + "\n" + "+\n" + qual + "\n")
-                        clean += 1
-                    else:
-                        err.write(id + "\n" + seq + "\n" + "+\n" + qual + "\n")
+                    err.write(head + "\n" + seq + "\n" + "+\n" + qual_str + "\n")
         else:
             nn += 1
-
-        id = fh.readline().strip()
+    fh.close()
 
     log.write("total reads:\t{}".format(total) + "\n")
     log.write("clean reads:\t{}".format(clean) + "\n")
@@ -1191,16 +1213,15 @@ if args.command in ["all", "filter"]:
     else:
         err.close()
 
-    fh.close()
     log.close()
     out.close()
 
-    print("Filtering done: " + time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
+    print_time("[INFO]: Filtering done:")
 
 # ------------------------assign process--------------------------#
 
 if args.command in ["all", "assign"]:
-    print("Assigning start: " + time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
+    print_time("[INFO]: Assigning start:")
 
     if args.command == "all":
         args.fq = filtered_outfile
@@ -1228,13 +1249,13 @@ if args.command in ["all", "assign"]:
             i = i.strip()
             arr = i.split()
             if len(arr) != 2:
-                print("primer set is not well-formated")
+                print("[ERROR]: primer set is not well-formated")
                 exit()
             sam = arr[0]
             ipr = arr[1]
             FH[ipr] = arr[0]
             if sam in indp.keys():
-                print(arr[0] + "show twice in primer set")
+                print("[INFO]: " + arr[0] + "show twice in primer set")
             else:
                 ori = sam[0:3]
                 num = sam[-3:]
@@ -1254,18 +1275,22 @@ if args.command in ["all", "assign"]:
                 primerR = ipr[indexlen:]
     # check primer lines
     if primer_lines % 2 != 0:
-        print("primer lines ({}) is not even number".format(primer_lines))
-        print("the primer file need to have each forward and reverse primer")
+        print(
+            "[ERROR]: primer lines ({}) is wrong!".format(primer_lines)
+        )
+        print(
+            "[INFO]: the primer file need to have each"
+            + "forward and reverse primer"
+        )
         exit()
 
     # analysis barcodes and demultiplex argument(mismatch)
     (min_dis, max_dis) = dis_barcode(barcodes)
-    print("min distance among barcodes is {}".format(min_dis))
-    print("max distance among barcodes is {}".format(max_dis))
+    print("[INFO]: min distance among barcodes is {}".format(min_dis))
+    print("[INFO]: max distance among barcodes is {}".format(max_dis))
     if args.tag_mismatch and args.tag_mismatch > (min_dis - 1):
-        print("mismatch you set is too large to demultiplex, it must be smaller"
-             + " than {},".format(min_dis) + " because min distance among barcodes"
-             + " is {}".format(min_dis))
+        print("[ERROR]: mismatch you set is too large to demultiplex, it must be smaller"
+             + " than min distance ({})".format(min_dis))
         exit()
     # ini dict of count_total and count_assigned for statistic.
     count_assigned = {}
@@ -1302,12 +1327,9 @@ if args.command in ["all", "assign"]:
     assigned = 0
 
     with open(args.fq, "r") as fh:
-        head = fh.readline().strip()
-        while head:
-            seq = fh.readline().strip()
-            fh.readline().strip()
-            qual = fh.readline().strip()
-            head = fh.readline().strip()
+        for i in parse_se_fastq(fh):
+            head, seq, qual = i
+            qual_str = "".join(qual)
             seqnum += 1
             headf = seq[0:plenf]
             headr = seq[0:plenr]
@@ -1324,14 +1346,14 @@ if args.command in ["all", "assign"]:
                 count_assigned[FH[headf]] += 1
                 filehandle[FH[headf]].write(
                     "@" + FH[headf] + "_" + str(seqnum) + "\n" + seq + "\n"
-                    + "+\n" + qual + "\n")
+                    + "+\n" + qual_str + "\n")
                 assigned += 1
 
             elif headr in FH.keys():
                 count_assigned[FH[headr]] += 1
                 filehandle[FH[headr]].write(
                     "@" + FH[headr] + "_" + str(seqnum) + "\n" + seq + "\n"
-                    + "+\n" + qual + "\n")
+                    + "+\n" + qual_str + "\n")
                 assigned += 1
             else:
                 # much more likely to be a mismatch
@@ -1339,7 +1361,7 @@ if args.command in ["all", "assign"]:
                 if potential_target:
                     filehandle[potential_target].write(
                         "@" + potential_target + "_" + str(seqnum) + "\n" + seq + "\n"
-                        + "+\n" + qual + "\n")
+                        + "+\n" + qual_str + "\n")
                     assigned += 1
                     count_assigned[potential_target] += 1
                 else:
@@ -1361,11 +1383,11 @@ if args.command in ["all", "assign"]:
                 i + "\t" + str(count_assigned[i]) + "\n"
             )
 
-    print("Assigning done: " + time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
+    print_time("[INFO]: Assigning done:")
 
 # ------------------------assembly process--------------------------#
 if args.command in ["all", "assembly"]:
-    print("Assembling start: " + time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
+    print_time("[INFO]: Assembling start:")
 
     if args.cluster_number_needKeep and args.abundance_threshod:
         print(
@@ -1376,25 +1398,22 @@ if args.command in ["all", "assembly"]:
         exit()
 
     if args.min_overlap > 83:
-        print(
-            "For COI barcodes, by and large, overlaped length is 83 bp, so {} \
-            is not proper!".format(args.min_overlap)
+        print("[ERROR]: "
+            + "For COI barcodes, by and large, overlaped length is 83 bp, so\
+              {} is not proper!".format(args.min_overlap)
         )
         exit()
     if args.max_overlap < args.min_overlap:
-        print("maximum overlap length must be large than minimun")
+        print("[ERROR]: maximum overlap length must be large than minimun")
         exit()
 
     if args.command == "all":
         args.list = assigned_list  # list generated from assign step
 
     assembly_result = args.outpre + "_assembly.fasta"
-    if os.path.exists(assembly_result):
-        print("WARRNING: " + assembly_result + " has existed!  overwriting ...")
-
-    fh_out = open(assembly_result, "w")
-    fh_log = open(args.outpre + "_assembly.log", "w")
-    fh_depth = open((args.outpre + "_assembly.depth"), "w")
+    fh_out = CheckandOpen_outHandle(assembly_result)
+    fh_log = CheckandOpen_outHandle(args.outpre + "_assembly.log")
+    fh_depth = CheckandOpen_outHandle(args.outpre + "_assembly.depth")
 
     fh_log.write("## assigned reads list file = " + args.list + "\n")
 
@@ -1421,7 +1440,7 @@ if args.command in ["all", "assembly"]:
     fh_log.write("## max overlap = " + str(args.max_overlap) + "\n")
 
     list_format_info = (
-        "your list is not well formated!"
+        "[ERROR]: your list is not well formated!"
         + "for example:\n\t"
         + "/path/test_For001.fastq\t/path/test_Rev001.fastq"
     )
@@ -1434,7 +1453,7 @@ if args.command in ["all", "assembly"]:
         with open(args.list) as fh_list:
             lines = fh_list.readlines()
     except FileNotFoundError:
-        print("can not find " + args.list)
+        print("[ERROR]: can not find " + args.list)
         exit(0)
 
     for line in lines:
@@ -1490,7 +1509,7 @@ if args.command in ["all", "assembly"]:
                 seq_checked_rev = comp_rev_list(seq_checked_rev)
                 table_r = mode_consensus(seq_checked_rev)
 
-            # sort array by it's abundance#
+            # sort array by it's abundance
             consensus_for = sorted(
                 table_f.keys(), key=lambda x: len(table_f[x]), reverse=True
             )
@@ -1525,7 +1544,7 @@ if args.command in ["all", "assembly"]:
                     pos2 = j + 1
                     abundance_r = len(table_r[cluster_r])
 
-                    # print just once #
+                    # print just once
                     if pos1 == 1:
                         fh_log.write(
                             ">"
@@ -1609,7 +1628,7 @@ if args.command in ["all", "assembly"]:
 
                         else:
                             correct = ""
-                            # report forward depth#
+                            # report forward depth
                             title = short_outname + "_" + str(pos1) + "-" + str(pos2)
                             report_depth(
                                 table_f,
@@ -1673,7 +1692,7 @@ if args.command in ["all", "assembly"]:
                                         )
                                     else:
                                         fh_depth.write(base + ":0" + "\t")
-                                # empty dict sum #
+                                # empty dict sum for next round #
                                 sum = {}
 
                                 if s0[p] == s1[p]:
@@ -1736,7 +1755,7 @@ if args.command in ["all", "assembly"]:
                                 + str(pos2)
                                 + "\t\t-----overlap end-----\n"
                             )
-                            # #report reverse depth #
+                            # report reverse depth #
                             title = (
                                 short_outname + "_" + str(pos1) + "-" + str(pos2) + "\t"
                             )
@@ -1799,17 +1818,18 @@ if args.command in ["all", "assembly"]:
         rm_tmp_cmd = "rm temp.fa.* temp.uc.*"
         os.system(rm_tmp_cmd)
 
-    print("Total barcodes generated: {}".format(barcodes_count))
-    print("Assembling done: " + time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
+    print("[INFO]: Total barcodes generated: {}".format(barcodes_count))
+    print_time("[INFO]: Assembling done:")
+    print("\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
 
     # whether to run second round of assembly
     if len(run_again) > 0:
         rerun_list = args.outpre + "_rerun.list"
         print(
-            "Kindly recommend you to run these samples in "
+            "Kindly recommend you to run these samples in\n"
             + rerun_list
-            + " again,\nwith -rc option, or with a larger number of [-tp],"
-            + " or try mode 2:\n"
+            + " again, with -rc option,\nor with a larger number of [-tp],"
+            + " or try mode 2:"
         )
         print("------")
         with open(args.outpre + "_rerun.list", "w") as rr:
@@ -1817,12 +1837,13 @@ if args.command in ["all", "assembly"]:
             for r in run_again:
                 print(r)
         print("------")
-        print("And, finally run: 'HIFI-SE.py polish' to polish assemblies.")
+        print("And, finally run: 'HIFI-SE.py polish' to\npolish assemblies.")
+        print("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n")
 
 #--------------------polish process-------------------------------------------
 if args.command == "polish":
     from Bio import SeqIO
-    polish_outfile = args.coi_input + ".confident"
+    polish_outfile = args.coi_input + ".polished"
     coiout = open(polish_outfile,'w')
     with open(args.coi_input, "r") as handle:
         HASH_sam_abu = {}
@@ -1876,6 +1897,6 @@ if args.command == "polish":
             + "\n"
         )
     coiout.close()
-    print("Total barcodes polished: {}".format(polished_count))
+    print("[INFO]: Total barcodes polished: {}".format(polished_count))
 
-print("total run time: {}".format(time.time() - t))
+print("[INFO]: total run time: {0:.2f}".format(time.time() - t) + "s")
