@@ -439,7 +439,7 @@ parser_all = subparsers.add_parser(
         trans_parser,
     ],
     formatter_class=argparse.RawTextHelpFormatter,
-    help="run filter, assign and assembly",
+    help="run filter, assign and assembly.",
 )
 
 ## filter subcommand
@@ -447,7 +447,7 @@ parser_filter = subparsers.add_parser(
     "filter",
     parents=[common_parser, filter_parser],
     formatter_class=argparse.RawTextHelpFormatter,
-    help="filter raw reads",
+    help="remove or trim reads with low quality.",
 )
 
 ## assign subcommand
@@ -458,7 +458,7 @@ parser_assign = subparsers.add_parser(
              only_assign_parser,
              assign_parser],
     formatter_class=argparse.RawTextHelpFormatter,
-    help="assign reads to samples",
+    help="assign reads to samples by tags.",
 )
 
 ## assembly subcommand
@@ -471,7 +471,7 @@ parser_assembly = subparsers.add_parser(
              assembly_parser,
              trans_parser],
     formatter_class=argparse.RawTextHelpFormatter,
-    help="do assembly from input fastq\n" + "reads, output HIFI barcodes.",
+    help="do assembly from assigned reads,\noutput raw HIFI barcodes.",
 )
 
 ## polish subcommand
@@ -490,7 +490,7 @@ parser_bold = subparsers.add_parser(
     "bold_identification",
     parents=[],
     formatter_class=argparse.RawTextHelpFormatter,
-    help="do taxa identification\n" + "on BOLD system,\n",
+    help="do taxa identification on BOLD system\n",
 )
 
 ###############################################################################
