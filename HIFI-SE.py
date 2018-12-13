@@ -571,7 +571,6 @@ if args.command in ["all", "assembly"]:
 if errors_found > 0:
     parser.exit("Errors found! Exit!")
 
-
 if hasattr(args, "outpre") and args.outpre.endswith("/"):
     print("outpre is in bad format! no \"/\"")
     exit()
@@ -583,7 +582,6 @@ def CheckandOpen_outHandle(file):
         print("[INFO]: " + "open file " + file + "...")
     out = open(file, 'w')
     return out
-
 
 # -----------------------functions for filtering------------------#
 
@@ -686,7 +684,6 @@ def comp_rev(sequence):
     sequence = complementation(sequence)
     return sequence[::-1]
 
-
 def detect_mis(f, r, dict):
     tag_mis = 0
     primer_mis = 0
@@ -714,7 +711,6 @@ def detect_mis(f, r, dict):
     else:
         return False
 
-
 def dis_barcode(barcode_list):
     # ----count matched bases of two barcodes----#
     dis = []
@@ -741,7 +737,6 @@ def comp_rev_list(reads_list):
 
     return new_reads_list
 
-
 def match(str1, str2):
     # ----count matched bases of two sequences----#
     matched = 0
@@ -750,7 +745,6 @@ def match(str1, str2):
             matched += 1
     identity = matched / len(str1)
     return identity
-
 
 def translate_dnaseq(seq, codon):
     # ---------translate_dnaseq------------#
@@ -765,7 +759,6 @@ def translate_dnaseq(seq, codon):
         return False
     else:
         return True
-
 
 def read_fastq(fastq_file, ori):
     # ----------read fastq file-----------#
@@ -828,7 +821,6 @@ def read_fastq(fastq_file, ori):
 
     return seq_checked
 
-
 def coi_check(contig, codon):
     # ---------------coi_check------------#
     for_trim = args.index + 25 + 1
@@ -873,7 +865,6 @@ def depth_table(seqs):
 
         depth = {}
     return consensus
-
 
 def report_depth(table, title, seq, read_len, step, ori):
     # report the depth of each site
@@ -957,7 +948,6 @@ def mode_identical(seqs):
 
     return most_abuns
 
-
 def merge_matrix(matrix1, matrix2):
     # merge two matrix
     for i in range(len(matrix2)):
@@ -980,7 +970,6 @@ def repair_short_reads(reads, ori):
             a = i
         repaired.append(a)
     return repaired
-
 
 def mode_vsearch(seqs, ori):
     """
@@ -1093,7 +1082,6 @@ def mode_vsearch(seqs, ori):
 
     return cluster_tables
 
-
 def mode_consensus(seqs):
     # In mode 2, this is only table.#
     matrix = []
@@ -1152,7 +1140,8 @@ if args.command in ["all", "filter"]:
         filter_type = 1
         if not args.expected_err:
             args.expected_err = 10
-        log.write("Filtering by expected_err: {}".format(args.expected_err) + "\n")
+        log.write("Filtering by expected_err: {}".format(args.expected_err)
+                  + "\n")
 
     if args.raw.endswith(".gz"):
         fh = gzip.open(args.raw, "rt")
@@ -1168,9 +1157,16 @@ if args.command in ["all", "filter"]:
         if N_count < args.n:
             if filter_type == 1:
                 if args.trim == True:
-                    (good_seq, good_qual) = exp_e_trim(seq, qual,
-                                                       args.expected_err, args.phred)
-                    out.write(head + "\n" + good_seq + "\n" + "+\n" + good_qual + "\n")
+                    (good_seq, good_qual) = exp_e_trim(seq,
+                                                       qual,
+                                                       args.expected_err,
+                                                       args.phred)
+                    out.write(head
+                              + "\n"
+                              + good_seq
+                              + "\n+\n"
+                              + good_qual
+                              + "\n")
                     read_lens.append(len(good_seq))
                     clean += 1
                 elif exp_e(qual, args.phred) <= args.expected_err:
@@ -1185,14 +1181,29 @@ if args.command in ["all", "filter"]:
                                                                  high_qual,
                                                                  low_qual_cont,
                                                                 args.phred)
-                    out.write(head + "\n" + good_seq + "\n" + "+\n" + good_qual + "\n")
+                    out.write(head
+                              + "\n"
+                              + good_seq
+                              + "\n+\n"
+                              + good_qual
+                              + "\n")
                     read_lens.append(len(good_seq))
                     clean += 1
                 elif lowquality_rate(qual, high_qual, args.phred) > low_qual_cont:
-                    out.write(head + "\n" + seq + "\n" + "+\n" + qual_str + "\n")
+                    out.write(head
+                              + "\n"
+                              + seq
+                              + "\n+\n"
+                              + qual_str
+                              + "\n")
                     clean += 1
                 else:
-                    err.write(head + "\n" + seq + "\n" + "+\n" + qual_str + "\n")
+                    err.write(head
+                              + "\n"
+                              + seq
+                              + "\n+\n"
+                              + qual_str
+                              + "\n")
         else:
             nn += 1
     fh.close()
@@ -1289,8 +1300,8 @@ if args.command in ["all", "assign"]:
     print("[INFO]: min distance among barcodes is {}".format(min_dis))
     print("[INFO]: max distance among barcodes is {}".format(max_dis))
     if args.tag_mismatch and args.tag_mismatch > (min_dis - 1):
-        print("[ERROR]: mismatch you set is too large to demultiplex, it must be smaller"
-             + " than min distance ({})".format(min_dis))
+        print("[ERROR]: mismatch you set is too large to demultiplex,"
+              + " it must be smaller than min distance ({})".format(min_dis))
         exit()
     # ini dict of count_total and count_assigned for statistic.
     count_assigned = {}
@@ -1360,8 +1371,15 @@ if args.command in ["all", "assign"]:
                 potential_target = detect_mis(headf, headr, FH)
                 if potential_target:
                     filehandle[potential_target].write(
-                        "@" + potential_target + "_" + str(seqnum) + "\n" + seq + "\n"
-                        + "+\n" + qual_str + "\n")
+                        "@"
+                        + potential_target
+                        + "_"
+                        + str(seqnum)
+                        + "\n"
+                        + seq
+                        + "\n+\n"
+                        + qual_str
+                        + "\n")
                     assigned += 1
                     count_assigned[potential_target] += 1
                 else:
@@ -1433,9 +1451,13 @@ if args.command in ["all", "assembly"]:
     fh_log.write("## consensus mode = " + str(args.mode) + "\n")
 
     if args.mode == 1:
-        fh_log.write("## clustering identity = " + str(args.cluster_identity) + "\n")
+        fh_log.write("## clustering identity = "
+                     + str(args.cluster_identity)
+                     + "\n")
 
-    fh_log.write("## overlaping identity = " + str(args.overlap_identity) + "\n")
+    fh_log.write("## overlaping identity = "
+                 + str(args.overlap_identity)
+                 + "\n")
     fh_log.write("## min overlap = " + str(args.min_overlap) + "\n")
     fh_log.write("## max overlap = " + str(args.max_overlap) + "\n")
 
@@ -1474,20 +1496,23 @@ if args.command in ["all", "assembly"]:
             fh_log.write("//processing " + outname + "\n")
             # if file is empty, continue
             if os.path.getsize(forward) == 0 or os.path.getsize(reverse) == 0:
-                fh_log.write("! Eithor Forward or Reverse file is empty!" + "\n")
+                fh_log.write("! Eithor Forward or Reverse file is empty!")
+                fh_log.write("\n")
                 continue
 
             seq_checked_for = read_fastq(forward, "f")
             seq_checked_rev = read_fastq(reverse, "r")
 
             if len(seq_checked_for) == 0 or len(seq_checked_rev) == 0:
-                fh_log.write("! Eithor Forward or Reverse reads is NONE!" + "\n")
+                fh_log.write("! Eithor Forward or Reverse reads is NONE!")
+                fh_log.write("\n")
                 run_again.append(short_outname)
                 run_again_file += line + "\n"
                 continue
 
-            # here table_f and table_r are two quotes of two dicts, key is consensus sequence
-            # value is a 2D array, including each cluster's bases.
+            # here table_f and table_r are two quotes of two dicts,
+            # key is consensus sequence value is a 2D array,
+            # including each cluster's bases.
 
             if args.mode == 1 and args.cluster_identity == 1:
                 table_f = mode_identical(seq_checked_for)
@@ -1861,7 +1886,6 @@ if args.command == "polish":
             if (for_coverage < args.min_coverage
                 or rev_coverage < args.min_coverage
                 or length < args.coi_length):
-
                 continue
 
             elif args.coi_check and coi_check(str(record.seq), args.codon_table) == False:
