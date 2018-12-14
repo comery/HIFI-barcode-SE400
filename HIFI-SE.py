@@ -138,9 +138,9 @@ filter_group.add_argument(
 ## assign group ##
 assign_parser = argparse.ArgumentParser(
     add_help=False,
-    description="assing clean reads to +\
-                                        samples by unique tag sequence with +\
-                                        100% similarity",
+    description="assing clean reads to"
+    + "samples by unique tag sequence"
+    +"with 100% similarity",
 )
 
 assign_group = assign_parser.add_argument_group("assign arguments")
@@ -180,8 +180,6 @@ assign_group.add_argument(
     default=1,
     help="mismatch number in primer when demultiplexing, default=1",
 )
-
-
 
 ## only assign need
 only_assign_parser = argparse.ArgumentParser(add_help=False)
@@ -318,7 +316,6 @@ trans_group.add_argument(
     default=1,
     help="start codon shift for amino acid" + "translation, default=1",
 )
-
 
 ## only assembly need
 only_assembly_parser = argparse.ArgumentParser(add_help=False)
@@ -531,13 +528,13 @@ def files_exist_0_or_1(filelist):
     '''
     check files involed whether are existing!
     '''
-    num = 0
+    NUM = 0
     for file in filelist:
         if os.path.exists(file):
-            num += 1
+            NUM += 1
         else:
             print("%s doesn't exist!" % file, file=sys.stderr)
-    if len(filelist) == num:
+    if len(filelist) == NUM:
         return 0
     else:
         return 1
@@ -575,7 +572,7 @@ if hasattr(args, "outpre") and args.outpre.endswith("/"):
     print("outpre is in bad format! no \"/\"")
     exit()
 
-def CheckandOpen_outHandle(file):
+def check_and_open_outhandle(file):
     if os.path.exists(file):
         print("WARRNING: " + file + " exists! now overwriting ...")
     else:
@@ -586,6 +583,9 @@ def CheckandOpen_outHandle(file):
 # -----------------------functions for filtering------------------#
 
 def parse_se_fastq(fq_fh):
+    """
+    make generator to read fastq file.
+    """
     while True:
         name = fq_fh.readline().strip()
         if len(name) == 0:
@@ -955,23 +955,19 @@ def merge_matrix(matrix1, matrix2):
 
     return matrix1
 
-def repair_short_reads(reads, ori):
+def repair_short_reads(reads):
     repaired = []
     lmax = max_length(reads)
     for i in reads:
         if len(i) < lmax:
-            if ori == 'f':
-                # completion with - in the head for end reads
-                a = i + "-" * (lmax - len(i))
-            else:
-                # ori is 'r', completion with - in the head for reverse reads
-                a = "-" * (lmax - len(i)) + i
+            # completion with - in the head for end reads
+            a = i + "-" * (lmax - len(i))
         else:
             a = i
         repaired.append(a)
     return repaired
 
-def mode_vsearch(seqs, ori):
+def mode_vsearch(seqs):
     """
     in mode 1, but clustering identity is not 100%,
     it is hard to archieve by perl, so I use VSEARCH to make it.
@@ -1059,7 +1055,7 @@ def mode_vsearch(seqs, ori):
             # split reads into bases-arrays#
         # if your reads are trimed, so they are uneven, this is to
         # normalize length
-        k_seqs = repair_short_reads(k_seqs, ori)
+        k_seqs = repair_short_reads(k_seqs)
         con = depth_table(k_seqs)
         for s in k_seqs:
             matrix.append(list(s))
@@ -1105,10 +1101,10 @@ if args.command in ["all", "filter"]:
     print_time("[INFO]: Filtering start:")
 
     filtered_outfile = args.outpre + "_filter_highqual.fastq"
-    out = CheckandOpen_outHandle(filtered_outfile)
+    out = check_and_open_outhandle(filtered_outfile)
 
     logfile = args.outpre + "_filter_log.txt"
-    log = CheckandOpen_outHandle(logfile)
+    log = check_and_open_outhandle(logfile)
 
     # ini state
     total = 0
@@ -1132,12 +1128,12 @@ if args.command in ["all", "filter"]:
     elif args.quality:
         high_qual = args.quality[0]
         low_qual_cont = args.quality[1] / 100
-        filter_type = 2
+        FILTER_TYPE = 2
         log.write("Filtering by quality score: {}, content: {}%".format(
             args.quality, args.quality[1])
             + "\n")
     else:
-        filter_type = 1
+        FILTER_TYPE = 1
         if not args.expected_err:
             args.expected_err = 10
         log.write("Filtering by expected_err: {}".format(args.expected_err)
@@ -1155,7 +1151,7 @@ if args.command in ["all", "filter"]:
         N_count = seq.count("N")
 
         if N_count < args.n:
-            if filter_type == 1:
+            if FILTER_TYPE == 1:
                 if args.trim == True:
                     (good_seq, good_qual) = exp_e_trim(seq,
                                                        qual,
@@ -1392,7 +1388,7 @@ if args.command in ["all", "assign"]:
         fh.close()
 
     # report assignment information
-    with open(args.outpre + ".assign.log", "w") as log:
+    with open(args.outpre + "_assign.log", "w") as log:
         log.write("total reads:\t{}\n".format(seqnum))
         log.write("err reads:\t{}\n".format(err))
         log.write("assigned:\t{}\n".format(assigned))
@@ -1429,9 +1425,9 @@ if args.command in ["all", "assembly"]:
         args.list = assigned_list  # list generated from assign step
 
     assembly_result = args.outpre + "_assembly.fasta"
-    fh_out = CheckandOpen_outHandle(assembly_result)
-    fh_log = CheckandOpen_outHandle(args.outpre + "_assembly.log")
-    fh_depth = CheckandOpen_outHandle(args.outpre + "_assembly.depth")
+    fh_out = check_and_open_outhandle(assembly_result)
+    fh_log = check_and_open_outhandle(args.outpre + "_assembly.log")
+    fh_depth = check_and_open_outhandle(args.outpre + "_assembly.depth")
 
     fh_log.write("## assigned reads list file = " + args.list + "\n")
 
@@ -1520,17 +1516,17 @@ if args.command in ["all", "assembly"]:
                 table_r = mode_identical(seq_checked_rev)
 
             elif args.mode == 1 and args.cluster_identity < 1:
-                table_f = mode_vsearch(seq_checked_for, 'f')
+                table_f = mode_vsearch(seq_checked_for)
                 seq_checked_rev = comp_rev_list(seq_checked_rev)
-                table_r = mode_vsearch(seq_checked_rev, 'r')
+                table_r = mode_vsearch(seq_checked_rev)
 
             else:
                 # mod == 2
                 # in mod2, though there is only one sequence, also using a array to store.
 
-                seq_checked_for = repair_short_reads(seq_checked_for, 'f')
+                seq_checked_for = repair_short_reads(seq_checked_for)
                 table_f = mode_consensus(seq_checked_for)
-                seq_checked_rev = repair_short_reads(seq_checked_rev, 'r')
+                seq_checked_rev = repair_short_reads(seq_checked_rev)
                 seq_checked_rev = comp_rev_list(seq_checked_rev)
                 table_r = mode_consensus(seq_checked_rev)
 
