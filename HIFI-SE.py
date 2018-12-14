@@ -83,8 +83,8 @@ filter_group.add_argument(
     "-raw",
     metavar="<STR>",
     required=True,
-    help="input raw Single-End fastq file, and\n"
-    + "only adapters should be removed;\nsupposed on\n"
+    help="input raw Single-End fastq file, and"
+    + " only\nadapters should be removed; supposed on\n"
     + "Phred33 score system (BGISEQ-500)",
 )
 
@@ -237,7 +237,7 @@ assembly_group.add_argument(
     metavar="INT",
     type=int,
     dest="cluster_number_needKeep",
-    help="how many clusters will be used in" + "assembly, recommendation=2",
+    help="how many clusters will be used in" + "assembly, recommend 2",
 )
 
 assembly_group.add_argument(
@@ -290,7 +290,8 @@ assembly_group.add_argument(
     "-rc",
     dest="reads_check",
     action="store_true",
-    help="whether to check amino acid translation\n" + "for reads, default not",
+    help="whether to check amino acid\n"
+    +"translation for reads, default not",
 )
 
 # translation need
@@ -347,7 +348,7 @@ polish_group.add_argument(
     type=str,
     dest="coi_input",
     required=True,
-    help="COI barcode assemblies",
+    help="COI barcode assemblies (fasta)",
 )
 
 polish_group.add_argument(
@@ -392,7 +393,8 @@ Description
 
 Versions
 
-    1.0.2 2018-12-10  Add "-trim" function in filter;
+    1.0.3 2018-12-14 Fix a bug of "trim"
+    1.0.2 2018-12-10 Add "-trim" function in filter;
         accept mismatches in tag or primer sequence,
         when demultiplexing; accept uneven reads to
         assembly; add "-ds" to drop short reads before
@@ -416,7 +418,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument(
     "-v", "--version",
     action="version",
-    version="%(prog)s 1.0.2"
+    version="%(prog)s 1.0.3"
 )
 
 subparsers = parser.add_subparsers(dest="command")
@@ -774,7 +776,7 @@ def read_fastq(fastq_file, ori):
     # fastq_err = "It's not a correct fastq format.\n"
     for i in parse_se_fastq(fh_file):
         head, sequence, qual = i
-
+        reads_count += 1
         seq_len = len(sequence)
         if args.drop_short_read and seq_len < args.standard_length:
             short_reads += 1

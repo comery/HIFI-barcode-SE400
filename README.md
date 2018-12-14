@@ -3,25 +3,26 @@ The BGISEQ-500 platform has launched a new test sequencing kits capable of singl
 
 
 ### Manual
-[manual book](https://github.com/comery/HIFI-barcode-SE400/raw/master/HIFI-SE_manual_v1.0.2.pdf)
+[manual book](https://github.com/comery/HIFI-barcode-SE400/raw/master/HIFI-SE_manual_v1.0.3.pdf)
 
 ### Versions
 
 #### version 1.0.2 Python
-- v1.0.2 2018-12-10  Add "-trim" function in filter;
+- v1.0.3 2018-12-14 Fix a bug of "trim"
+- v1.0.2 2018-12-10 Add "-trim" function in filter;
 	accept mismatches in tag or primer sequence,
    	when demultiplexing; accept uneven reads to
    	assembly; add "-ds" to drop short reads before
    	assembly.
-- 1.0.1 2018-12-2  Add "polish" function
+- v1.0.1 2018-12-2  Add "polish" function
 - v1.0.0  
 	HIFI-SE v1.0.0 2018/11/22. Changers form previous version:
 	- Formatted python code writing style as PEP8.
 	- Fixed several small bugs.
-- V0.0.3  
+- v0.0.3  
 	HIFI-SE v0.03 2018/11/15. Changes from previous version:
 	- Modify the description of some arguments for better understanding.
-- V0.0.1  
+- v0.0.1  
 	HIFI-SE v0.0.1 2018/11/03 beat version, establish the framework and archive almost complete functions.
 
 #### original Perl version & Python, rough sources
@@ -76,12 +77,14 @@ Description
 
     An automatic pipeline for HIFI-SE400 project, including filtering
     raw reads, assigning reads to samples, assembly HIFI barcodes
-    (COI sequences).
+    (COI sequences), polished assemblies, and do tax identification.
+    See more: https://github.com/comery/HIFI-barcode-SE400
 
-Version
+Versions
 
-    1.0.2 2018-12-10  Add "-trim" function in filter;
-        accept mistmatched in tag or primer sequence,
+    1.0.3 2018-12-14 Fix a bug of "trim"
+    1.0.2 2018-12-10 Add "-trim" function in filter;
+        accept mismatches in tag or primer sequence,
         when demultiplexing; accept uneven reads to
         assembly; add "-ds" to drop short reads before
         assembly.
@@ -89,22 +92,22 @@ Version
     1.0.0 2018-11-22 formated as PEP8 style
     0.0.1 2018-11-3
 
-Author
+Authors
+
     yangchentao at genomics.cn, BGI.
     mengguanliang at genomics.cn, BGI.
 
 positional arguments:
   {all,filter,assign,assembly,polish,bold_identification}
-    all                 run filter, assign and assembly
-    filter              filter raw reads
-    assign              assign reads to samples
-    assembly            do assembly from input fastq
-                        reads, output HIFI barcodes.
+    all                 run filter, assign and assembly.
+    filter              remove or trim reads with low quality.
+    assign              assign reads to samples by tags.
+    assembly            do assembly from assigned reads,
+                        output raw HIFI barcodes.
     polish              polish COI barcode assemblies,
                         output confident barcodes.
     bold_identification
-                        do taxa identification
-                        on BOLD system,
+                        do taxa identification on BOLD system
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -116,7 +119,7 @@ optional arguments:
 - ```python3 HIFI-SE.py filter ```
 
 ```text
-usage: HIFI-SE filter [-h] -outpre <STR> -raw <STR> [-e <INT>]
+usage: HIFI-SE filter [-h] -outpre <STR> -raw <STR> [-phred <INT>] [-e <INT>]
                       [-q <INT> <INT>] [-trim] [-n <INT>]
 
 optional arguments:
@@ -126,10 +129,10 @@ common arguments:
   -outpre <STR>   prefix for output files
 
 filter arguments:
-  -raw <STR>      input raw Single-End fastq file, and
-                  only adapters should be removed;
-                  supposed on
+  -raw <STR>      input raw Single-End fastq file, and only
+                  adapters should be removed; supposed on
                   Phred33 score system (BGISEQ-500)
+  -phred <INT>    Phred score system, 33 or 64, default=33
   -e <INT>        expected error threshod, default=10
                   see more: http://drive5.com/usearch/manual/exp_errs.html
   -q <INT> <INT>  filter by base quality; for example: '20 5' means
@@ -198,7 +201,7 @@ assembly arguments:
   -min INT        minimun length of overlap, default=80
   -max INT        maximum length of overlap, default=90
   -oid FLOAT      minimun similarity of overlap region, default=0.95
-  -tp INT         how many clusters will be used inassembly, recommendation=2
+  -tp INT         how many clusters will be used inassembly, recommend 2
   -ab INT         keep clusters to assembly if its abundance >=INT
   -seqs_lim INT   reads number limitation. by default,
                   no limitation for input reads
@@ -210,8 +213,8 @@ assembly arguments:
                   consensus sequence for each cluster.
                   modle 2 is directly to make only one consensus
                   sequence without clustering. default=1
-  -rc             whether to check amino acid translation
-                  for reads, default not
+  -rc             whether to check amino acid
+                  translation for reads, default not
 
 translation arguments(when set -rc or -cc):
   -codon INT      codon usage table used to checktranslation, default=5
