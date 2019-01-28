@@ -237,6 +237,7 @@ python3 HIFI-SE.py all -outpre hifi -trim -e 5 -raw test.raw.fastq -index 5 -pri
 ```
 
 ### Citation
-This work is not be published, but coming soon! I will update this part after publication.
+
+Yang, Chentao, Shangjin Tan, Guanliang Meng, David G. Bourne, Paul A. O'Brien, Junqiang Xu, Sha Liao, Ao Chen, Xiaowei Chen, and Shanlin Liu. "Access COI barcode efficiently using high throughput Single End 400 bp sequencing." bioRxiv (2018): 498618.
 
 

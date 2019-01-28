@@ -495,7 +495,6 @@ parser_bold = subparsers.add_parser(
 ###############################################################################
 #####---------------------- program execution start ----------------------#####
 
-args = parser.parse_args()
 # -----------------------BOLD identification----------------------#
 if len(sys.argv) == 1:
     parser.print_help()
@@ -506,6 +505,7 @@ if sys.argv[1] == "bold_identification":
     sys.argv = sys.argv[1:]
     sys.exit(bold_identification())
 
+args = parser.parse_args()
 
 # -----------------------arguments checking-----------------------#
 ## softwares and databases
