@@ -486,7 +486,7 @@ parser_polish = subparsers.add_parser(
 
 ## BOLD_identification
 parser_bold = subparsers.add_parser(
-    "bold_identification",
+    "taxonomy",
     parents=[],
     formatter_class=argparse.RawTextHelpFormatter,
     help="do taxa identification on BOLD system\n",
@@ -500,7 +500,7 @@ if len(sys.argv) == 1:
     parser.print_help()
     parser.exit()
 
-if sys.argv[1] == "bold_identification":
+if sys.argv[1] == "taxonomy":
     # if args.command == 'bold_identification':
     sys.argv = sys.argv[1:]
     sys.exit(bold_identification())
