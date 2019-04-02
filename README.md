@@ -3,11 +3,12 @@ The BGISEQ-500 platform has launched a new test sequencing kits capable of singl
 
 
 ### Manual
-[manual book](https://github.com/comery/HIFI-barcode-SE400/raw/master/HIFI-SE_manual_v1.0.3.pdf)
+[manual book](https://github.com/comery/HIFI-barcode-SE400/raw/master/HIFI-SE_manual.pdf)
 
 ### Versions
 
-#### version 1.0.2 Python
+#### version 1.0.4 Python
+- v1.0.4 2019-04-02 Fix a bug of "polish", and update the bold_identification module
 - v1.0.3 2018-12-14 Fix a bug of "trim"
 - v1.0.2 2018-12-10 Add "-trim" function in filter;
 	accept mismatches in tag or primer sequence,
@@ -82,15 +83,7 @@ Description
 
 Versions
 
-    1.0.3 2018-12-14 Fix a bug of "trim"
-    1.0.2 2018-12-10 Add "-trim" function in filter;
-        accept mismatches in tag or primer sequence,
-        when demultiplexing; accept uneven reads to
-        assembly; add "-ds" to drop short reads before
-        assembly.
-    1.0.1 2018-12-2  Add "polish" function
-    1.0.0 2018-11-22 formated as PEP8 style
-    0.0.1 2018-11-3
+    1.0.4 (20190402)
 
 Authors
 
@@ -237,7 +230,6 @@ python3 HIFI-SE.py all -outpre hifi -trim -e 5 -raw test.raw.fastq -index 5 -pri
 ```
 
 ### Citation
-
-Yang, Chentao, Shangjin Tan, Guanliang Meng, David G. Bourne, Paul A. O'Brien, Junqiang Xu, Sha Liao, Ao Chen, Xiaowei Chen, and Shanlin Liu. "Access COI barcode efficiently using high throughput Single End 400 bp sequencing." bioRxiv (2018): 498618.
+This work is not be published, but coming soon! I will update this part after publication.
 
 

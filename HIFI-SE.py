@@ -352,6 +352,22 @@ polish_group.add_argument(
 )
 
 polish_group.add_argument(
+    "-o",
+    metavar="STR",
+    type=str,
+    dest="coi_output",
+    help="polished COI barcode assemblies (fasta)",
+)
+
+polish_group.add_argument(
+    "-tag",
+    metavar="STR",
+    type=str,
+    dest="sampleMark",
+    help="add a mark for each sampel, like: >MARK_001;xxx",
+)
+
+polish_group.add_argument(
     "-cc",
     dest="coi_check",
     action="store_false",
@@ -372,9 +388,18 @@ polish_group.add_argument(
     "-l",
     metavar="INT",
     type=int,
-    dest="coi_length",
-    default=650,
-    help="minimun length of COI barcode allowed, default=650",
+    dest="min_length",
+    default=711,
+    help="minimun length (with tag and primer) of COI barcode allowed, default=711",
+)
+
+polish_group.add_argument(
+    "-L",
+    metavar="INT",
+    type=int,
+    dest="max_length",
+    default=719,
+    help="maximun length (with tag and primer) of COI barcode allowed, default=719",
 )
 
 # ------------------------------------------------------------------------------------------------
@@ -393,15 +418,7 @@ Description
 
 Versions
 
-    1.0.3 2018-12-14 Fix a bug of "trim"
-    1.0.2 2018-12-10 Add "-trim" function in filter;
-        accept mismatches in tag or primer sequence,
-        when demultiplexing; accept uneven reads to
-        assembly; add "-ds" to drop short reads before
-        assembly.
-    1.0.1 2018-12-2  Add "polish" function
-    1.0.0 2018-11-22 formated as PEP8 style
-    0.0.1 2018-11-3
+    1.0.4 (20190402)
 
 Authors
 
@@ -418,7 +435,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument(
     "-v", "--version",
     action="version",
-    version="%(prog)s 1.0.3"
+    version="%(prog)s 1.0.4"
 )
 
 subparsers = parser.add_subparsers(dest="command")
@@ -1861,12 +1878,21 @@ if args.command in ["all", "assembly"]:
                 print(r)
         print("------")
         print("And, finally run: 'HIFI-SE.py polish' to\npolish assemblies.")
-        print("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n")
+        print(">>>>>>>>>>>>>>>>>>>>END>>>>>>>>>>>>>>>>>>>>>\n")
 
 #--------------------polish process-------------------------------------------
 if args.command == "polish":
     from Bio import SeqIO
-    polish_outfile = args.coi_input + ".polished"
+    if args.coi_output:
+        polish_outfile = args.coi_output
+    else:
+        polish_outfile = args.coi_input + ".polished"
+
+    if args.sampleMark:
+        marker = args.sampleMark
+    else:
+        marker = ""
+
     coiout = open(polish_outfile,'w')
     with open(args.coi_input, "r") as handle:
         HASH_sam_abu = {}
@@ -1883,7 +1909,8 @@ if args.command == "polish":
             # remove low record with low coverage or short length
             if (for_coverage < args.min_coverage
                 or rev_coverage < args.min_coverage
-                or length < args.coi_length):
+                or length < args.min_length
+                or length > args.max_length):
                 continue
 
             elif args.coi_check and coi_check(str(record.seq), args.codon_table) == False:
@@ -1902,12 +1929,14 @@ if args.command == "polish":
     sorted_samples = sorted(ARR_sam_abu.keys())
     polished_count = len(sorted_samples)
     for s in sorted_samples:
-        abus = sorted(ARR_sam_abu[s])
+        abus = sorted(ARR_sam_abu[s], reverse=True)
         top_abu = abus[0]
         seq = HASH_sam_abu[s][top_abu]
         seqlen = len(seq)
         coiout.write(
             ">"
+            + marker
+            + "_"
             + str(s)
             + ";size="
             + str(top_abu)
