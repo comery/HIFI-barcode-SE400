@@ -7,7 +7,8 @@ The BGISEQ-500 platform has launched a new test sequencing kits capable of singl
 
 ### Versions
 
-#### version 1.0.4 Python
+#### latest version 1.0.5 Python
+- v1.0.5 2019-0409 add support to compressed fastq, fix a bug of taxonomy
 - v1.0.4 2019-04-02 Fix a bug of "polish", and update the bold_identification module
 - v1.0.3 2018-12-14 Fix a bug of "trim"
 - v1.0.2 2018-12-10 Add "-trim" function in filter;
@@ -16,11 +17,11 @@ The BGISEQ-500 platform has launched a new test sequencing kits capable of singl
    	assembly; add "-ds" to drop short reads before
    	assembly.
 - v1.0.1 2018-12-2  Add "polish" function
-- v1.0.0  
+- v1.0.0
 	HIFI-SE v1.0.0 2018/11/22. Changers form previous version:
 	- Formatted python code writing style as PEP8.
 	- Fixed several small bugs.
-- v0.0.3  
+- v0.0.3
 	HIFI-SE v0.03 2018/11/15. Changes from previous version:
 	- Modify the description of some arguments for better understanding.
 - v0.0.1  
@@ -83,7 +84,7 @@ Description
 
 Versions
 
-    1.0.4 (20190402)
+    1.0.5 (20190409)
 
 Authors
 
