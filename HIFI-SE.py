@@ -188,7 +188,7 @@ only_assign_group = only_assign_parser.add_argument_group(
 )
 
 only_assign_group.add_argument(
-    "-fq", metavar="<STR>", required=True, help="cleaned fastq file "
+    "-fq", metavar="<STR>", required=True, help="cleaned fastq file (*.fq.gz, *.fq)"
 )
 
 # ------------------------------------------------------------------------------
@@ -418,7 +418,7 @@ Description
 
 Versions
 
-    1.0.4 (20190402)
+    1.0.5 (20190409)
 
 Authors
 
@@ -435,7 +435,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument(
     "-v", "--version",
     action="version",
-    version="%(prog)s 1.0.4"
+    version="%(prog)s 1.0.5"
 )
 
 subparsers = parser.add_subparsers(dest="command")
@@ -1352,54 +1352,59 @@ if args.command in ["all", "assign"]:
     err = 0
     assigned = 0
 
-    with open(args.fq, "r") as fh:
-        for i in parse_se_fastq(fh):
-            head, seq, qual = i
-            qual_str = "".join(qual)
-            seqnum += 1
-            headf = seq[0:plenf]
-            headr = seq[0:plenr]
-            # cut head (max of for and rev) to make a tmp sequence
-            len_head_cut = max(plenf, plenr)
-            tmp = seq[len_head_cut:]
-            # if primer in the wrong position, remove this reads.
-            if (primerF in tmp or primerR in tmp
-                or neg_priF in tmp or neg_priR in tmp):
-                ErrFile.write(">" + str(seqnum) + "_priErr\n" + seq + "\n")
-                err += 1
+    if args.fq.endswith(".gz"):
+        fh = gzip.open(args.fq, "rt")
+    else:
+        fh = open(args.fq, "r")
+    for i in parse_se_fastq(fh):
+        head, seq, qual = i
+        qual_str = "".join(qual)
+        seqnum += 1
+        headf = seq[0:plenf]
+        headr = seq[0:plenr]
+        # cut head (max of for and rev) to make a tmp sequence
+        len_head_cut = max(plenf, plenr)
+        tmp = seq[len_head_cut:]
+        # if primer in the wrong position, remove this reads.
+        if (primerF in tmp or primerR in tmp
+            or neg_priF in tmp or neg_priR in tmp):
+            ErrFile.write(">" + str(seqnum) + "_priErr\n" + seq + "\n")
+            err += 1
 
-            elif headf in FH.keys():
-                count_assigned[FH[headf]] += 1
-                filehandle[FH[headf]].write(
-                    "@" + FH[headf] + "_" + str(seqnum) + "\n" + seq + "\n"
-                    + "+\n" + qual_str + "\n")
-                assigned += 1
+        elif headf in FH.keys():
+            count_assigned[FH[headf]] += 1
+            filehandle[FH[headf]].write(
+                "@" + FH[headf] + "_" + str(seqnum) + "\n" + seq + "\n"
+                + "+\n" + qual_str + "\n")
+            assigned += 1
 
-            elif headr in FH.keys():
-                count_assigned[FH[headr]] += 1
-                filehandle[FH[headr]].write(
-                    "@" + FH[headr] + "_" + str(seqnum) + "\n" + seq + "\n"
-                    + "+\n" + qual_str + "\n")
+        elif headr in FH.keys():
+            count_assigned[FH[headr]] += 1
+            filehandle[FH[headr]].write(
+                "@" + FH[headr] + "_" + str(seqnum) + "\n" + seq + "\n"
+                + "+\n" + qual_str + "\n")
+            assigned += 1
+        else:
+            # much more likely to be a mismatch
+            potential_target = detect_mis(headf, headr, FH)
+            if potential_target:
+                filehandle[potential_target].write(
+                    "@"
+                    + potential_target
+                    + "_"
+                    + str(seqnum)
+                    + "\n"
+                    + seq
+                    + "\n+\n"
+                    + qual_str
+                    + "\n")
                 assigned += 1
+                count_assigned[potential_target] += 1
             else:
-                # much more likely to be a mismatch
-                potential_target = detect_mis(headf, headr, FH)
-                if potential_target:
-                    filehandle[potential_target].write(
-                        "@"
-                        + potential_target
-                        + "_"
-                        + str(seqnum)
-                        + "\n"
-                        + seq
-                        + "\n+\n"
-                        + qual_str
-                        + "\n")
-                    assigned += 1
-                    count_assigned[potential_target] += 1
-                else:
-                    err += 1
-                    ErrFile.write(">" + str(seqnum) + "\n" + seq + "\n")
+                err += 1
+                ErrFile.write(">" + str(seqnum) + "\n" + seq + "\n")
+    #close args.fq
+    fh.close
 
     ErrFile.close()
     # close all assigned files
