@@ -178,7 +178,8 @@ assign_group.add_argument(
     type=int,
     dest="primer_mismatch",
     default=1,
-    help="mismatch number in primer when demultiplexing, default=1",
+    help="mismatch number in primer when demultiplexing, caution:\n" +\
+    "degenerated base will not count as a mismatch simply. default=1",
 )
 
 ## only assign need
@@ -703,30 +704,44 @@ def comp_rev(sequence):
     sequence = complementation(sequence)
     return sequence[::-1]
 
+def judge(a,b):
+    if a == b:
+        return False
+    elif (code[a] <= 7 and code[b] > 7) and code[b]%code[a] == 0:
+        return False
+    elif (code[b] <= 7 and code[a] > 7) and code[a]%code[b] == 0:
+        return False
+    else:
+        # this is a mismatch, so it will count
+        return True
+
 def detect_mis(f, r, dict):
     tag_mis = 0
     primer_mis = 0
+    distance = {}
     strs = [f, r]
     while(strs):
         s1 = strs.pop()
         for s2 in dict.keys():
+            # compare sequence with same lenght
             if len(s1) == len(s2):
                 tag_mis = 0
                 primer_mis = 0
                 for base in range(len(s1)):
-                    if s1[base] is not s2[base]:
+                    if judge(s1[base],s2[base]):
                         if base < args.index:
                             tag_mis += 1
                         else:
                             primer_mis += 1
                 if (tag_mis <= args.tag_mismatch
                     and primer_mis <= args.primer_mismatch):
-                    goal = dict[s2]
-                    break
-                else:
-                    goal = ''
-    if len(goal) > 0:
-        return goal
+                    # total mismatches (tmis + pmis) linked with tag
+                    distance[s2] = tag_mis + primer_mis
+
+    # find min distance among all sequence
+    if len(distance) > 0:
+        sorted_tag = sorted(distance.keys(), key=lambda k:distance[k])
+        return FH[sorted_tag[0]]
     else:
         return False
 
@@ -735,12 +750,15 @@ def dis_barcode(barcode_list):
     dis = []
     while(barcode_list):
         b1 = barcode_list.pop()
-        for b2 in barcode_list:
-            mismatch = 0
-            for base in range(len(b1)):
-                if b1[base] is not b2[base]:
-                    mismatch += 1
-            dis.append(mismatch)
+        if len(barcode_list) == 0:
+            dis.append(0)
+        else:
+            for b2 in barcode_list:
+                mismatch = 0
+                for base in range(len(b1)):
+                    if b1[base] is not b2[base]:
+                        mismatch += 1
+                dis.append(mismatch)
     min_dis = min(dis)
     max_dis = max(dis)
     return (min_dis, max_dis)
@@ -1267,6 +1285,23 @@ if args.command in ["all", "assign"]:
     indp = {}
     FH = {}
     barcodes = []
+    code= {
+        'A':2,
+        'T':3,
+        'C':5,
+        'G':7,
+        'R':14,      # A|G
+        'Y':15,      # C|T
+        'M':20,      # A|C
+        'K':21,      # G|T
+        'S':35,      # G|C
+        'W':24,      # A|T here is not 6 for setting a cufoff to be easy to know jianbing base
+        'H':30,      # A|T|C
+        'B':105,     # G|T|C
+        'V':70,      # G|A|C
+        'D':42,      # G|A|T
+        'N':210      # A|G|C|T
+    }
 
     with open(args.primer, "r") as p:
         primer_lines = 0
