@@ -153,7 +153,7 @@ assign_group.add_argument(
     + "Rev001   AAGCTAAACTTCAGGGTGACCAAAAAATCA\n"
     + "For001   AAGCGGTCAACAAATCATAAAGATATTGG\n"
     + "...\n"
-    + "this format is necessary!",
+    + "this format is necessary, degenerated base is also accepted.",
 )
 
 assign_group.add_argument(
@@ -169,7 +169,7 @@ assign_group.add_argument(
     type=int,
     dest="tag_mismatch",
     default=0,
-    help="mismatch number in tag when demultiplexing, default=0",
+    help="mismatch tolerance in tag when demultiplexing, default=0",
 )
 
 assign_group.add_argument(
@@ -178,8 +178,8 @@ assign_group.add_argument(
     type=int,
     dest="primer_mismatch",
     default=1,
-    help="mismatch number in primer when demultiplexing, caution:\n" +\
-    "degenerated base will not count as a mismatch simply. default=1",
+    help="mismatch tolerance in primer when demultiplexing, caution:\n" +\
+    "degenerated base does not count as a mismatch. default=1",
 )
 
 ## only assign need
@@ -419,7 +419,7 @@ Description
 
 Versions
 
-    1.0.5 (20190409)
+    2.0.1 (20190415)
 
 Authors
 
@@ -436,7 +436,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument(
     "-v", "--version",
     action="version",
-    version="%(prog)s 1.0.5"
+    version="%(prog)s 2.0.1"
 )
 
 subparsers = parser.add_subparsers(dest="command")
@@ -689,8 +689,8 @@ def lowquality_rate_trim(seq, qual, quality_demand, low_rate, phred):
 
     return (good_seq, good_qual)
 
-
 # ----------------------functions for assigning-------------------#
+
 def complementation(sequence):
     # make a sequence complement #
     # replace function of string is too low!
@@ -947,7 +947,6 @@ def report_depth(table, title, seq, read_len, step, ori):
                     fh_depth.write(base + ":0" + "\t")
             fh_depth.write("\n")
             depth_sum = {}
-
 
 def mode_identical(seqs):
     """

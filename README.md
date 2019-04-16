@@ -7,8 +7,9 @@ The BGISEQ-500 platform has launched a new test sequencing kits capable of singl
 
 ### Versions
 
-#### latest version 1.0.5 Python
-- v1.0.5 2019-0409 add support to compressed fastq, fix a bug of taxonomy
+#### latest version 2.0.1 Python3
+- v2.0.1 2019-04-15 fix a bug of "assign", and degenerated base in primer now is accepted.
+- v1.0.5 2019-04-09 add support to compressed fastq, fix a bug of taxonomy
 - v1.0.4 2019-04-02 Fix a bug of "polish", and update the bold_identification module
 - v1.0.3 2018-12-14 Fix a bug of "trim"
 - v1.0.2 2018-12-10 Add "-trim" function in filter;
@@ -84,7 +85,7 @@ Description
 
 Versions
 
-    1.0.5 (20190409)
+    2.0.1 (20190415)
 
 Authors
 
@@ -153,17 +154,17 @@ index arguments:
   -index INT     the length of tag sequence in the ends of primers
 
 when only run assign arguments:
-  -fq <STR>      cleaned fastq file
+  -fq <STR>      cleaned fastq file (*.fq.gz, *.fq)
 
 assign arguments:
   -primer <STR>  taged-primer list, on following format:
                  Rev001   AAGCTAAACTTCAGGGTGACCAAAAAATCA
                  For001   AAGCGGTCAACAAATCATAAAGATATTGG
                  ...
-                 this format is necessary!
+                 this format is necessary, degenerated base is also accepted.
   -outdir <STR>  output directory for assignment,default="assigned"
-  -tmis <INT>    mismatch number in tag when demultiplexing, default=0
-  -pmis <INT>    mismatch number in primer when demultiplexing, default=1
+  -tmis <INT>    mismatch tolerance in tag when demultiplexing, default=0
+  -pmis <INT>    mismatch tolerance in primer when demultiplexing, default=1
 ```
 - ```python3 HIFI-SE.py assembly```
 
@@ -231,6 +232,8 @@ python3 HIFI-SE.py all -outpre hifi -trim -e 5 -raw test.raw.fastq -index 5 -pri
 ```
 
 ### Citation
-This work is not be published, but coming soon! I will update this part after publication.
+ 
+Yang, Chentao, Shangjin Tan, Guanliang Meng, David G. Bourne, Paul A. O'brien, Junqiang Xu, Sha Liao, Ao Chen, Xiaowei Chen, and Shanlin Liu. "Access COI barcode efficiently using high throughput Single End 400 bp sequencing." BioRxiv (2018): 498618.
+
 
 
