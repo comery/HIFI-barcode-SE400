@@ -3,9 +3,9 @@ The BGISEQ-500 platform has launched a new test sequencing kits capable of singl
 
 
 ### Manual
-[manual book](https://github.com/comery/HIFI-barcode-SE400/raw/master/HIFI-SE_manual.pdf)
+Download manual book to see details. => [manual book](https://github.com/comery/HIFI-barcode-SE400/raw/master/HIFI-SE_manual.pdf)
 
-### Versions
+### Changelog
 
 #### latest version 2.0.1 Python3
 - v2.0.1 2019-04-15 fix a bug of "assign", and degenerated base in primer now is accepted.
@@ -216,7 +216,7 @@ translation arguments(when set -rc or -cc):
   -frame INT      start codon shift for amino acidtranslation, default=1
 ```
 
-### quickstart
+### Quickstart
 #### Files used in tutorial
 All related files could be found from here. The important files for tutorial are:
 

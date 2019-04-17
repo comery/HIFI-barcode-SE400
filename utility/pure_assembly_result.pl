@@ -1,5 +1,9 @@
 #! /usr/bin/perl -w
 use strict;
+if (@ARGV < 1) {
+	print "\n\tUsage: perl $0 assembly.fasta\n";
+	exit;
+}
 open IN,shift;
 my $current_sam;
 my %hash;
