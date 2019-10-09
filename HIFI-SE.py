@@ -1294,7 +1294,7 @@ if args.command in ["all", "assign"]:
         'M':20,      # A|C
         'K':21,      # G|T
         'S':35,      # G|C
-        'W':24,      # A|T here is not 6 for setting a cufoff to be easy to know jianbing base
+        'W':24,      # A|T here is not 6 for setting a cufoff to be easy to know degenerate base
         'H':30,      # A|T|C
         'B':105,     # G|T|C
         'V':70,      # G|A|C
