@@ -1,0 +1,3 @@
+- if there is one barcode in indexed-primers.txt, the fuction "dis_barcodes" will fail
+
+- the overlap length should be calculated, not specifical number
