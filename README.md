@@ -7,7 +7,8 @@ Download manual book to see details. => [manual book](https://github.com/comery/
 
 ### Changelog
 
-#### latest version 2.0.1 Python3
+#### latest version 2.0.2 Python3
+- v2.0.2 2020-06-25 add a function in "taxonomy" module that can BLAST the 5’ and 3’ end of the barcode sequences and then compare taxonomies for consistency to further validate the assembly accuracy.
 - v2.0.1 2019-04-15 fix a bug of "assign", and degenerated base in primer now is accepted.
 - v1.0.5 2019-04-09 add support to compressed fastq, fix a bug of taxonomy
 - v1.0.4 2019-04-02 Fix a bug of "polish", and update the bold_identification module
@@ -69,7 +70,7 @@ python3 HIFI-SE.py
 or 
 
 ```shell
-./HIFI-SE.py
+HIFI-SE.py
 ```
 
 ```text
@@ -85,7 +86,7 @@ Description
 
 Versions
 
-    2.0.1 (20190415)
+    2.0.2 (20200625)
 
 Authors
 
@@ -101,8 +102,7 @@ positional arguments:
                         output raw HIFI barcodes.
     polish              polish COI barcode assemblies,
                         output confident barcodes.
-    bold_identification
-                        do taxa identification on BOLD system
+    taxonomy            do taxa identification on BOLD system
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -215,6 +215,51 @@ translation arguments(when set -rc or -cc):
   -codon INT      codon usage table used to checktranslation, default=5
   -frame INT      start codon shift for amino acidtranslation, default=1
 ```
+
+- ```python3 HIFI-SE.py taxonomy```
+
+```text
+usage: taxonomy [-h] -i <str> [-f <str>] -o <str>
+                [-d {COX1,COX1_SPECIES,COX1_SPECIES_PUBLIC,COX1_L640bp,ITS,MATK_RBCL}]
+                [-n <int>] [-r <int>] [-c] [-D] [--version]
+
+To identify taxa of given sequences from BOLD (http://www.boldsystems.org/).
+Some sequences can fail to get taxon information, which can be caused by
+TimeoutException if your network to the BOLD server is bad.
+Those sequences will be output in the file '*.TimeoutException.fasta'.
+
+You can:
+1) run another searching with the same command directly (but add -c option);
+2) lengthen the time to wait for each query (-t option);
+3) increase submission times (-r option) for a sequence.
+
+Also, the sequences without BOLD matches will be output in the
+file '*.NoBoldMatchError.fasta'
+
+By mengguanliang AT genomics DOT cn.
+See https://github.com/linzhi2013/bold_identification.
+
+version: 0.0.25
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -i <str>              input file name
+  -f <str>              input file format [fasta]
+  -o <str>              outfile
+  -d {COX1,COX1_SPECIES,COX1_SPECIES_PUBLIC,COX1_L640bp,ITS,MATK_RBCL}
+                        database to search [COX1]
+  -n <int>              how many first top hits will be output. [1]
+  -r <int>              Maximum submission time for a sequence, useful for
+                        handling TimeOutException. [4]
+  -c                    continuous mode, jump over the ones already in "-o"
+                        file, will resubmit all the remained. use "-cc" to
+                        also jump over the ones in "*.NoBoldMatchError.fasta"
+                        file. [0]
+  -D                    debug mode output [False]
+  --version             show program's version number and exit
+  
+ ```
+
 
 ### Quickstart
 #### Files used in tutorial

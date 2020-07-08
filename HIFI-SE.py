@@ -419,7 +419,7 @@ Description
 
 Versions
 
-    2.0.1 (20190415)
+    2.0.2 (20200625)
 
 Authors
 
@@ -436,7 +436,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument(
     "-v", "--version",
     action="version",
-    version="%(prog)s 2.0.1"
+    version="%(prog)s 2.0.2"
 )
 
 subparsers = parser.add_subparsers(dest="command")
