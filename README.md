@@ -278,6 +278,10 @@ python3 HIFI-SE.py all -outpre hifi -trim -e 5 -raw test.raw.fastq -index 5 -pri
 
 ### Citation
  
+Current:
+Yang, C., Zheng, Y., Tan, S., Meng, G., Rao, W., Yang, C., ... & Liu, S. (2020). Efficient COI barcoding using high throughput single-end 400 bp sequencing. BMC genomics, 21(1), 1-10.
+
+PrePrint
 Yang, Chentao, Shangjin Tan, Guanliang Meng, David G. Bourne, Paul A. O'brien, Junqiang Xu, Sha Liao, Ao Chen, Xiaowei Chen, and Shanlin Liu. "Access COI barcode efficiently using high throughput Single End 400 bp sequencing." BioRxiv (2018): 498618.
 
 
