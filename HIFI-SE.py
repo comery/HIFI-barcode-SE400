@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/opt/homebrew/opt/python@3.9/bin/python3.9
 import os
 import sys
 import time
@@ -17,7 +17,7 @@ except:
     sys.exit("package biopython not found! Please install it!")
 else:
     from Bio.Seq import Seq
-    from Bio.Alphabet import generic_dna
+    #from Bio.Alphabet import generic_dna
 
 
 ###############################################################################
@@ -153,7 +153,7 @@ assign_group.add_argument(
     + "Rev001   AAGCTAAACTTCAGGGTGACCAAAAAATCA\n"
     + "For001   AAGCGGTCAACAAATCATAAAGATATTGG\n"
     + "...\n"
-    + "this format is necessary, degenerated base is also accepted.",
+    + "this format is necessary!",
 )
 
 assign_group.add_argument(
@@ -169,7 +169,7 @@ assign_group.add_argument(
     type=int,
     dest="tag_mismatch",
     default=0,
-    help="mismatch tolerance in tag when demultiplexing, default=0",
+    help="mismatch number in tag when demultiplexing, default=0",
 )
 
 assign_group.add_argument(
@@ -178,8 +178,7 @@ assign_group.add_argument(
     type=int,
     dest="primer_mismatch",
     default=1,
-    help="mismatch tolerance in primer when demultiplexing, caution:\n" +\
-    "degenerated base does not count as a mismatch. default=1",
+    help="mismatch number in primer when demultiplexing, default=1",
 )
 
 ## only assign need
@@ -419,7 +418,7 @@ Description
 
 Versions
 
-    2.0.2 (20200625)
+    1.0.5 (20190409)
 
 Authors
 
@@ -436,7 +435,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument(
     "-v", "--version",
     action="version",
-    version="%(prog)s 2.0.2"
+    version="%(prog)s 1.0.5"
 )
 
 subparsers = parser.add_subparsers(dest="command")
@@ -689,8 +688,8 @@ def lowquality_rate_trim(seq, qual, quality_demand, low_rate, phred):
 
     return (good_seq, good_qual)
 
-# ----------------------functions for assigning-------------------#
 
+# ----------------------functions for assigning-------------------#
 def complementation(sequence):
     # make a sequence complement #
     # replace function of string is too low!
@@ -704,44 +703,30 @@ def comp_rev(sequence):
     sequence = complementation(sequence)
     return sequence[::-1]
 
-def judge(a,b):
-    if a == b:
-        return False
-    elif (code[a] <= 7 and code[b] > 7) and code[b]%code[a] == 0:
-        return False
-    elif (code[b] <= 7 and code[a] > 7) and code[a]%code[b] == 0:
-        return False
-    else:
-        # this is a mismatch, so it will count
-        return True
-
 def detect_mis(f, r, dict):
     tag_mis = 0
     primer_mis = 0
-    distance = {}
     strs = [f, r]
     while(strs):
         s1 = strs.pop()
         for s2 in dict.keys():
-            # compare sequence with same lenght
             if len(s1) == len(s2):
                 tag_mis = 0
                 primer_mis = 0
                 for base in range(len(s1)):
-                    if judge(s1[base],s2[base]):
+                    if s1[base] != s2[base]:
                         if base < args.index:
                             tag_mis += 1
                         else:
                             primer_mis += 1
                 if (tag_mis <= args.tag_mismatch
                     and primer_mis <= args.primer_mismatch):
-                    # total mismatches (tmis + pmis) linked with tag
-                    distance[s2] = tag_mis + primer_mis
-
-    # find min distance among all sequence
-    if len(distance) > 0:
-        sorted_tag = sorted(distance.keys(), key=lambda k:distance[k])
-        return FH[sorted_tag[0]]
+                    goal = dict[s2]
+                    break
+                else:
+                    goal = ''
+    if len(goal) > 0:
+        return goal
     else:
         return False
 
@@ -750,15 +735,12 @@ def dis_barcode(barcode_list):
     dis = []
     while(barcode_list):
         b1 = barcode_list.pop()
-        if len(barcode_list) == 0:
-            dis.append(0)
-        else:
-            for b2 in barcode_list:
-                mismatch = 0
-                for base in range(len(b1)):
-                    if b1[base] is not b2[base]:
-                        mismatch += 1
-                dis.append(mismatch)
+        for b2 in barcode_list:
+            mismatch = 0
+            for base in range(len(b1)):
+                if b1[base] != b2[base]:
+                    mismatch += 1
+            dis.append(mismatch)
     min_dis = min(dis)
     max_dis = max(dis)
     return (min_dis, max_dis)
@@ -786,12 +768,14 @@ def match(str1, str2):
 def translate_dnaseq(seq, codon):
     # ---------translate_dnaseq------------#
     l_dna = len(seq)
-    if l_dna % 3 is not 0:
+    if l_dna % 3 != 0:
         seq = seq[: -(l_dna % 3)]
         # print("your sequence lenght is not tripple" + \
         # "but no worries, I have trimmed well format")
-    coding_dna = Seq(seq, generic_dna)
-    protein = coding_dna.translate(table=codon)
+    # modify by yangchentao 20210202
+    #coding_dna = Seq(seq, generic_dna)
+    #protein = coding_dna.translate(table=codon)
+    protein = Seq(seq).translate()
     if "*" in protein:
         return False
     else:
@@ -835,7 +819,7 @@ def read_fastq(fastq_file, ori):
                 # complementation
                 tmp = complementation(tmp)
                 # triming end
-                if seq_len % 3 is not 0:
+                if seq_len % 3 != 0:
                     tmp = tmp[0 : -(seq_len % 3)]
                 # reverse #
                 tmp = tmp[::-1]
@@ -948,6 +932,7 @@ def report_depth(table, title, seq, read_len, step, ori):
             fh_depth.write("\n")
             depth_sum = {}
 
+
 def mode_identical(seqs):
     """
     in mode 1, using all codon checked reads to cluster with 100% identity,
@@ -1046,7 +1031,7 @@ def mode_vsearch(seqs):
     with open(temp_uc, "r") as uc:
         # there are "H","S","C" in the head of line
         for line in uc.readlines():
-            if line[0] is not "H":
+            if line[0] != "H":
                 continue
             array = line.split()
             if array[9] in clusters.keys():
@@ -1284,23 +1269,6 @@ if args.command in ["all", "assign"]:
     indp = {}
     FH = {}
     barcodes = []
-    code= {
-        'A':2,
-        'T':3,
-        'C':5,
-        'G':7,
-        'R':14,      # A|G
-        'Y':15,      # C|T
-        'M':20,      # A|C
-        'K':21,      # G|T
-        'S':35,      # G|C
-        'W':24,      # A|T here is not 6 for setting a cufoff to be easy to know degenerate base
-        'H':30,      # A|T|C
-        'B':105,     # G|T|C
-        'V':70,      # G|A|C
-        'D':42,      # G|A|T
-        'N':210      # A|G|C|T
-    }
 
     with open(args.primer, "r") as p:
         primer_lines = 0
