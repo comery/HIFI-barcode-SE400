@@ -1,4 +1,4 @@
-#!/opt/homebrew/opt/python@3.9/bin/python3.9
+#!/usr/bin/env python3
 import os
 import sys
 import time
