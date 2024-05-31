@@ -49,7 +49,7 @@ Operating system: HIFI-SE is designed to run on most platforms, including UNIX, 
 
 #### Install
 
-1. I only deploy my latest version on github, so you can clone this repository to your local computer. However, it would not solve package dependencies, thus you need to install biopython and bold_identification before using HIFI-SE software.<b>(NOTE: pip is a link from pip3)</b>
+1. [Recommended ] I only deploy my latest version on github, so you can clone this repository to your local computer. However, it would not solve package dependencies, thus you need to install biopython and bold_identification before using HIFI-SE software.<b>(NOTE: pip is a link from pip3)</b>
 
 	```shell
 	git clone https://github.com/comery/HIFI-barcode-SE400.git
@@ -57,7 +57,7 @@ Operating system: HIFI-SE is designed to run on most platforms, including UNIX, 
 	pip install bold_identification  
 	```
 	
-2. Installation by pip is recommended because it will solve package dependencies automatically, including biopython and bold_identification packages. 
+2. [Perhaps out of date] Installation by pip is recommended because it will solve package dependencies automatically, including biopython and bold_identification packages. 
 
 	```pip install HIFI-SE``` 
 
@@ -258,7 +258,7 @@ optional arguments:
   -D                    debug mode output [False]
   --version             show program's version number and exit
   
- ```
+```
 
 
 ### Quickstart
@@ -277,7 +277,7 @@ python3 HIFI-SE.py all -outpre hifi -trim -e 5 -raw test.raw.fastq -index 5 -pri
 ```
 
 ### Citation
- 
+
 Current:
 
 Yang, C., Zheng, Y., Tan, S., Meng, G., Rao, W., Yang, C., ... & Liu, S. (2020). Efficient COI barcoding using high throughput single-end 400 bp sequencing. BMC genomics, 21(1), 1-10.
